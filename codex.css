@@ -1,0 +1,33 @@
+/* Codex supplies theme tokens. Keep the existing discussion layout, scoped to its root. */
+#discuss-root { color: var(--foreground); padding: 8px 0; overflow-wrap: anywhere; }
+#discuss-root [hidden] { display: none !important; }
+#discuss-root header, #discuss-root .list, #discuss-root .thread, #discuss-root .reply { display: grid; gap: 12px; }
+#discuss-root header { padding-right: 90px; margin-bottom: 20px; }
+#discuss-root h1, #discuss-root h2, #discuss-root h3, #discuss-root p { margin: 0; }
+#discuss-root h2 { flex: 1; min-width: 0; }
+#discuss-root .pt { min-width: 0; padding: 16px 0; border-bottom: 1px solid var(--border); }
+#discuss-root .pt-head, #discuss-root summary, #discuss-root .counts, #discuss-root .choices, #discuss-root .bar-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; }
+#discuss-root .pt-head { cursor: pointer; }
+#discuss-root .collapsed .body { display: none; }
+#discuss-root .thread, #discuss-root .reply { margin-top: 12px; }
+#discuss-root .who, #discuss-root .eyebrow, #discuss-root .foot, #discuss-root .keys, #discuss-root .meter { color: var(--muted-foreground); }
+#discuss-root .msg { overflow-wrap: anywhere; }
+#discuss-root .msg p { margin-bottom: 8px; }
+#discuss-root .you { padding-left: 12px; border-left: 2px solid var(--border); }
+#discuss-root textarea { width: 100%; box-sizing: border-box; resize: vertical; min-height: 3em; }
+#discuss-root .pill { color: var(--muted-foreground); }
+#discuss-root .pt.sent { border-color: var(--primary); }
+#discuss-root .delivery { padding: 12px; border: 1px solid var(--primary); border-radius: 8px; }
+#discuss-root button:disabled { cursor: default; opacity: .65; }
+#discuss-root .bar { margin-top: 20px; display: grid; gap: 8px; }
+#discuss-root .status { flex: 1 1 200px; }
+#discuss-root .err, #discuss-root #storage-warning { color: var(--destructive); }
+#discuss-root .err:empty { display: none; }
+#discuss-root .foot { margin-top: 12px; }
+#discuss-root #copybox { min-height: 8em; }
+#discuss-root .choice.first { font-weight: 600; }
+#discuss-root .choice[aria-pressed="true"]::before { content: "\2713"; margin-right: 5px; }
+#discuss-root .tip { position: fixed; z-index: 10; max-width: min(22rem, calc(100vw - 32px)); padding: 8px 10px; border: 1px solid var(--border);
+  border-radius: 8px; background: var(--popover, var(--background, Canvas)); white-space: pre-line; pointer-events: none; }
+#discuss-root .tip b { display: block; }
+#discuss-root h3 { margin-top: 16px; }

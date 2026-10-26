@@ -1,0 +1,791 @@
+<title>__TITLE__</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+/* One numbered reading column; the checkbox reveals closed cards in place. */
+:root {
+  --bg: #f4f5f7; --surface: #ffffff; --ink: #18202b; --muted: #556071; --faint: #7f8a99;
+  --line: #dce0e6; --line-strong: #b9c0ca;
+  --accent: #2950c7; --accent-bg: #e7edfb; --on-accent: #ffffff;
+  --ok: #1d6f47; --ok-bg: #e2f1e8; --new: #7a4f00; --new-bg: #fbefd6;
+  --park: #5f6774; --park-bg: #eceef1; --danger: #b42318;
+  --serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", Consolas, "Courier New", monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #11151b; --surface: #191f28; --ink: #e5e9ef; --muted: #a2acba; --faint: #7c8695;
+  --line: #2a313c; --line-strong: #414b59;
+  --accent: #8eaefc; --accent-bg: #1d2944; --on-accent: #0d1424;
+  --ok: #7dd0a0; --ok-bg: #16301f; --new: #f1c36b; --new-bg: #33280f;
+  --park: #a3abb7; --park-bg: #222932; --danger: #f2877d; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #11151b; --surface: #191f28; --ink: #e5e9ef; --muted: #a2acba; --faint: #7c8695;
+  --line: #2a313c; --line-strong: #414b59;
+  --accent: #8eaefc; --accent-bg: #1d2944; --on-accent: #0d1424;
+  --ok: #7dd0a0; --ok-bg: #16301f; --new: #f1c36b; --new-bg: #33280f;
+  --park: #a3abb7; --park-bg: #222932; --danger: #f2877d; color-scheme: dark; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.55 var(--sans); margin: 0; }
+/* The column is at least the window's height and the Send bar comes last, so the bar rests on the window's bottom
+   edge even when the points are short of filling it; on a longer page it sticks there. */
+.wrap { max-width: 46rem; margin: 0 auto; padding-block: 28px 0; box-sizing: border-box; min-height: 100vh; min-height: 100dvh;
+  display: flex; flex-direction: column;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+header { display: grid; gap: 6px; margin-bottom: 22px; }
+.eyebrow { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); }
+h1 { font: 600 1.6rem/1.2 var(--sans); margin: 0; text-wrap: balance; }
+.topic { color: var(--muted); margin: 0; }
+.counts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.pill { font-size: 12px; font-weight: 500; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+.pill.open { background: var(--accent-bg); color: var(--accent); }
+.pill.done { background: var(--ok-bg); color: var(--ok); }
+.pill.parked, .pill.dropped, .pill.sent { background: var(--park-bg); color: var(--park); }
+.pill.new, .pill.draft { background: var(--new-bg); color: var(--new); }
+.pt.sent { border-color: var(--ok); }
+.pill.sent { background: var(--ok-bg); color: var(--ok); }
+.delivery { margin: 0; padding: 12px 14px; border: 1px solid var(--ok); border-radius: 8px; background: var(--ok-bg); color: var(--ok); }
+button:disabled { cursor: default; opacity: .65; }
+.list { display: grid; gap: 12px; }
+.pt { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; min-width: 0; }
+.pt-head { display: flex; align-items: baseline; gap: 10px; cursor: pointer; border-radius: 6px; }
+.pt-head::after { content: ""; flex: none; align-self: center; width: 7px; height: 7px; margin-left: 4px;
+  border-right: 1.5px solid var(--faint); border-bottom: 1.5px solid var(--faint); transform: rotate(45deg) translateY(-2px); }
+.pt.collapsed .pt-head::after { transform: rotate(-45deg); }
+.pt-head .pill { margin-block: -3px; }  /* a tag is a bit taller than the title's line; one appearing mustn't grow the card */
+.pt.collapsed .body { display: none; }
+.no { font: 500 13px/1 var(--mono); color: var(--accent); min-width: 1.6em; font-variant-numeric: tabular-nums; }
+.pt h2 { font: 600 1rem/1.35 var(--sans); margin: 0; flex: 1; min-width: 0; text-wrap: balance; }
+.thread { display: grid; gap: 12px; margin: 12px 0 0 calc(1.6em + 10px); }
+.who { font-size: 12px; color: var(--faint); margin-bottom: 2px; }
+.msg { min-width: 0; overflow-wrap: anywhere; }
+.msg p, .msg ul, .msg ol { margin: 0 0 .5em; } .msg > :last-child { margin-bottom: 0; }
+.msg ul, .msg ol { padding-left: 1.3em; }
+.claude .msg { font: 16px/1.6 var(--serif); }
+.you .msg { border-left: 2px solid var(--line-strong); padding-left: 10px; color: var(--muted); }
+.msg code { font: 13px var(--mono); background: var(--park-bg); padding: 1px 4px; border-radius: 4px; }
+.msg a { color: var(--accent); }
+.reply { margin: 14px 0 0 calc(1.6em + 10px); display: grid; gap: 8px; }
+textarea { width: 100%; box-sizing: border-box; min-height: 2.6em; resize: none; overflow: hidden; font: 15px/1.5 var(--sans);
+  color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+textarea.field, .pt-head, summary { scroll-margin-top: 16px; scroll-margin-bottom: 160px; }
+.pt-head:focus-visible, textarea:focus-visible, button:focus-visible, summary:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.toggle { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); cursor: pointer; width: fit-content; }
+.toggle input { margin: 0; accent-color: var(--accent); }
+[hidden] { display: none !important; }
+.choices { display: flex; flex-wrap: wrap; gap: 6px; }
+/* The first choice is the recommendation, its label bold; the chosen one is ticked and filled, quieter than Send. */
+.choice { font-weight: 400; }
+.choice.first { font-weight: 600; }
+.choice[aria-pressed="true"] { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); }
+.choice[aria-pressed="true"]::before { content: "\2713"; content: "\2713" / ""; margin-right: 5px; }  /* a tick */
+.tip { position: fixed; z-index: 10; box-sizing: border-box; max-width: min(22rem, calc(100vw - 32px)); padding: 8px 10px;
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line-strong); border-radius: 8px;
+  box-shadow: 0 6px 20px rgb(0 0 0 / .14); font-size: 13px; line-height: 1.45; white-space: pre-line; overflow-wrap: anywhere; pointer-events: none; }
+.tip b { display: block; font: 600 11px/1.5 var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
+button { font: 500 13px/1 var(--sans); color: var(--ink); background: transparent; border: 1px solid var(--line-strong);
+  border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+button:hover { background: var(--park-bg); }
+button.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); border-radius: 8px; padding: 9px 16px; font-size: 14px; }
+button.primary:hover { filter: brightness(1.08); }
+button.plain { border-radius: 8px; padding: 9px 14px; font-size: 14px; }
+h3 { font: 600 12px/1 var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--faint); margin: 28px 0 10px; }
+details.pt { padding: 0; }
+details.pt > summary { list-style: none; display: flex; align-items: baseline; gap: 10px; padding: 12px 18px; cursor: pointer; }
+details.pt > summary::-webkit-details-marker { display: none; }
+details.pt > summary .outcome { flex: 1; min-width: 0; color: var(--muted); }
+details.pt > summary .outcome b { color: var(--ink); font-weight: 600; }
+details.pt[open] > summary { border-bottom: 1px solid var(--line); }
+details.pt .inner { padding: 4px 18px 16px; }
+.add .reply { margin-left: 0; margin-top: 0; }
+.bar { position: sticky; bottom: 0; margin-top: 28px; background: var(--bg); border-top: 1px solid var(--line);
+  padding: 12px 0 calc(12px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 6px; }
+.bar-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.status { flex: 1; min-width: 12rem; color: var(--muted); font-size: 14px; }
+.meter { font: 12px var(--mono); color: var(--faint); font-variant-numeric: tabular-nums; }
+.keys { font-size: 12px; color: var(--faint); margin: 0; }
+.keys kbd { font: 11px var(--mono); border: 1px solid var(--line-strong); border-radius: 4px; padding: 0 4px; }
+.err { color: var(--danger); font-size: 14px; margin: 0; }
+.err:empty { display: none; }
+#copybox { font: 13px/1.45 var(--mono); min-height: 8em; }
+.foot { color: var(--faint); font-size: 12px; margin: 12px 0 auto; }  /* the auto margin takes the free space above the bar */
+@media (prefers-reduced-motion: no-preference) { .pt { transition: border-color .15s; } }
+</style>
+
+<div class="wrap" id="discuss-root">
+  <header id="top">
+    <div class="eyebrow" id="eyebrow"></div>
+    <h1 id="title"></h1>
+    <p class="topic" id="topic" hidden></p>
+    <div class="counts" id="counts"></div>
+    <p class="delivery" id="delivery" role="status" hidden></p>
+    <label class="toggle" id="show-closed-label" hidden><input type="checkbox" id="show-closed"> <span id="show-closed-text"></span></label>
+  </header>
+  <section class="list" id="points" aria-label="Discussion points"></section>
+  <h3 id="new-h" hidden>New points</h3>
+  <section class="list" id="new-list" aria-label="New points"></section>
+  <h3>Add a point</h3>
+  <div class="pt add"><div class="reply"><textarea id="add" class="field" placeholder="Type a new point and press Enter"></textarea></div></div>
+  <p class="foot">Send saves your replies with this page and sends the __ASSISTANT__ session watching it a one-line comment pointing to them, so its chat stays short. Until __ASSISTANT__ answers, they stay in their boxes; change one and Send again to send just the change. __ASSISTANT__ answers every point, then republishes; this page reloads with the answers.</p>
+  <div class="bar" id="bar">
+    <div class="bar-row">
+      <span class="status" id="status" aria-live="polite">No replies yet. Blank points stay as they are.</span>
+      <span class="meter" id="meter"></span>
+      <button class="plain" id="copy" type="button">Copy replies</button>
+      <button class="primary" id="send" type="button">Send to __ASSISTANT__</button>
+    </div>
+    <div class="keys">
+      <div><kbd>Tab</kbd> next box or collapsed point · <kbd>Shift</kbd>+<kbd>Tab</kbd> back</div>
+      <div><kbd>Enter</kbd> next point, collapsing this one · <kbd>Shift</kbd>+<kbd>Enter</kbd> new line</div>
+      <div><kbd>Ctrl</kbd>+<kbd>Space</kbd> collapse · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> send</div>
+      <div><kbd>Alt</kbd>+<kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> put that choice in the box</div>
+      <div><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>1</kbd> show closed points · <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>2</kbd> add a point</div>
+    </div>
+    <p class="err" id="err" role="alert"></p>
+    <p id="storage-warning" role="status" hidden></p>
+    <textarea id="copybox" readonly hidden aria-label="Replies to paste into the chat"></textarea>
+  </div>
+  <div class="tip" id="tip" role="tooltip" hidden></div>
+</div>
+
+<script type="application/json" id="state">__STATE__</script>
+<script>
+(function () {
+  "use strict";
+  const S = JSON.parse(document.getElementById("state").textContent);
+  const CODEX = S.client === "codex";
+  const BROWSER = S.client === "browser";
+  // hosted: the page runs in a host web app's sandboxed iframe (opaque origin, no storage) and reaches
+  // the app only through postMessage; the app keeps the drafts and delivers the replies.
+  const HOSTED = S.client === "hosted";
+  const MEMORY = CODEX || HOSTED;  // drafts live in `draft`; the host stores them
+  const BRIDGE = "discuss/1";
+  const LIMIT = 4096;
+  const LABEL = { open: "Open", done: "Done", parked: "Parked", dropped: "Dropped" };
+  const TIP = {
+    open: "Waiting on you or __ASSISTANT__", done: "Settled: agreed, and any work it needed is finished",
+    parked: "On hold until the trigger __ASSISTANT__ named", dropped: "You dropped this topic",
+    new: "__ASSISTANT__ answered this point this round", draft: "A reply you haven't sent yet", sent: "Sent; waiting for __ASSISTANT__'s answer",
+  };
+  const $ = (id) => document.getElementById(id);
+  const enc = new TextEncoder();
+  const maxN = Math.max.apply(null, S.items.map((it) => it.n));
+  let comments = null, db = null, canSend = "pending", busy = false;
+  let newPoints = [];  // points added on this page this round: {text, sent}
+  let draft = {}, persistTimer, edited = false;
+  function restoreDraft(saved) {
+    // Host snapshots may arrive after more typing; never replace local edits with an echo.
+    if (edited) return false;
+    if (saved && saved.slug === S.slug && saved.round === S.round && saved.draft && typeof saved.draft === "object") {
+      draft = { ...saved.draft };
+      return true;
+    }
+    return false;
+  }
+  function restoreWidget(snapshot) { return restoreDraft(snapshot && snapshot.privateContent); }
+  if (CODEX) restoreWidget(window.openai && window.openai.widgetState);
+
+  // The host bridge: page -> app {discuss, id, type, payload}; app -> page {discuss, re, ok, result | error}.
+  // Requests: send {id, text, round}, draft {slug, round, draft}, version (answers {round}) and reload. The app
+  // may post {discuss, type: "init", draft} to restore drafts.
+  const framed = HOSTED && window.parent !== window;
+  let seq = 0;
+  const pending = new Map();
+  function bridge(type, payload, ms) {
+    return new Promise((resolve, reject) => {
+      if (!framed) { reject(Error("This page isn't open in its app.")); return; }
+      const id = ++seq;
+      const timer = setTimeout(() => { pending.delete(id); reject(Error("The app didn't answer.")); }, ms || 10000);
+      pending.set(id, { resolve, reject, timer });
+      window.parent.postMessage({ discuss: BRIDGE, id, type, payload }, "*");
+    });
+  }
+  function onBridge(e) {
+    const m = e.data;
+    if (e.source !== window.parent || !m || m.discuss !== BRIDGE) return;
+    if (m.type === "init") {
+      if (m.draft && typeof m.draft === "object" && restoreDraft({ slug: S.slug, round: S.round, draft: m.draft })) redraw();
+      return;
+    }
+    const p = pending.get(m.re);
+    if (!p) return;
+    pending.delete(m.re);
+    clearTimeout(p.timer);
+    if (m.ok) p.resolve(m.result); else p.reject(Error(m.error || "The app couldn't do that."));
+  }
+
+  function persist() {
+    clearTimeout(persistTimer);
+    persistTimer = setTimeout(() => {
+      const warning = $("storage-warning");
+      const warn = (text) => { warning.textContent = text; warning.hidden = false; };
+      if (HOSTED) {
+        if (!framed) { warn("These replies are kept only in this view. Copy them before leaving or reloading."); return; }
+        bridge("draft", { slug: S.slug, round: S.round, draft }).then(() => { warning.hidden = true; })
+          .catch(() => warn("Draft saving failed. Copy your replies before leaving or reloading."));
+        return;
+      }
+      const snapshot = { modelContent: null, privateContent: { slug: S.slug, round: S.round, draft } };
+      if (bytes(JSON.stringify(snapshot)) >= 16000 || !window.openai?.setWidgetState) {
+        warn("These replies are kept only in this view. Copy them before leaving or reloading.");
+        return;
+      }
+      window.openai.setWidgetState(snapshot).then(() => { warning.hidden = true; })
+        .catch(() => warn("Draft saving failed. Copy your replies before leaving or reloading."));
+    }, 150);
+  }
+
+  function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+  function inline(s) {
+    return esc(s)
+      .replace(/`([^`]+)`/g, "<code>$1</code>")
+      .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+      .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  }
+  function md(text) {
+    return String(text).trim().split(/\n{2,}/).map((block) => {
+      const lines = block.split("\n");
+      if (lines.every((l) => /^\s*[-*] /.test(l))) return "<ul>" + lines.map((l) => "<li>" + inline(l.replace(/^\s*[-*] /, "")) + "</li>").join("") + "</ul>";
+      if (lines.every((l) => /^\s*\d+[.)] /.test(l))) return "<ol>" + lines.map((l) => "<li>" + inline(l.replace(/^\s*\d+[.)] /, "")) + "</li>").join("") + "</ol>";
+      return "<p>" + lines.map(inline).join("<br>") + "</p>";
+    }).join("");
+  }
+
+  // Browser storage. Per round: a box's text (its number), what was sent from it ("sent:<n>"), new points ("new"),
+  // the Add box ("add") and collapsed cards ("c<n>"); a new round starts clean. Keys starting "pref:" last the whole discussion.
+  // Codex and hosted pages keep the same keys in `draft` and hand it to their host to store.
+  function key(k) { return "discuss:" + S.slug + (k.startsWith("pref:") ? ":" : ":r" + S.round + ":") + k; }
+  function get(k) { if (MEMORY) return draft[k] ?? null; try { return localStorage.getItem(key(k)); } catch (e) { return null; } }
+  function load(k) { return get(k) || ""; }
+  function save(k, v) { if (MEMORY) { edited = true; if (v) draft[k] = v; else delete draft[k]; persist(); return; } try { if (v) localStorage.setItem(key(k), v); else localStorage.removeItem(key(k)); } catch (e) {} }
+  function put(k, v) { if (MEMORY) { edited = true; draft[k] = v; persist(); return; } try { localStorage.setItem(key(k), v); } catch (e) {} }
+  function box(n) { const v = get(String(n)); return v === null ? load("sent:" + n) : v; }
+
+  // A closed <details> hides its content without clearing offsetParent, so ask the browser directly.
+  function shown(t) { return t.checkVisibility ? t.checkVisibility() : t.getClientRects().length > 0; }
+  function grow(t) {
+    if (!shown(t)) return;
+    t.style.height = "auto"; t.style.height = t.scrollHeight + 2 + "px";
+    // The caret counts as visible behind the sticky Send bar, so lift the end of a box being typed at clear of it.
+    if (t === document.activeElement && t.selectionEnd === t.value.length) {
+      const under = t.getBoundingClientRect().bottom + 8 - $("bar").getBoundingClientRect().top;
+      if (under > 0) window.scrollBy(0, under);
+    }
+  }
+  function growAll(root) { (root || document).querySelectorAll("textarea.field").forEach(grow); }
+
+  function threadHtml(it) {
+    return '<div class="thread">' + (it.thread || []).map((e) =>
+      '<div class="' + (e.who === "you" ? "you" : "claude") + '"><div class="who">' + (e.who === "you" ? "You" : e.who[0].toUpperCase() + e.who.slice(1)) +
+      " · round " + e.round + '</div><div class="msg">' + md(e.text) + "</div></div>").join("") + "</div>";
+  }
+  function replyHtml(it) {
+    return '<div class="reply"><textarea id="r-' + it.n + '" class="field" data-n="' + it.n + '" placeholder="Reply to point ' + it.n + '"></textarea>' +
+      choicesHtml(it) + "</div>";
+  }
+  // An open point's latest answer may offer up to three replies; a button's hover shows its reply, and a click puts it in the box.
+  // Choices stay out of the Tab order, so Tab goes from box to box.
+  function choicesHtml(it) {
+    const last = it.thread[it.thread.length - 1];
+    const offered = it.status === "open" && last.who !== "you" && Array.isArray(last.choices) ? last.choices : [];
+    return offered.length ? '<div class="choices">' + offered.map((c, i) => '<button type="button" class="choice' + (i ? '"' : ' first" aria-description="recommended"') +
+      ' tabindex="-1" aria-pressed="false" data-reply="' + esc(c.reply) + '" data-n="' + it.n + '">' + esc(c.label) + "</button>").join("") + "</div>" : "";
+  }
+  // The page's own tooltip, so the reply shows at once (a native title waits about half a second). Mouse only: a tap just fills the box.
+  function showTip(b) {
+    const tip = $("tip");
+    const key = "Alt+" + (Array.prototype.indexOf.call(b.parentNode.children, b) + 1);
+    tip.innerHTML = "<b>" + (b.classList.contains("first") ? "Recommended · " : "") + key + "</b>" + esc(b.dataset.reply);
+    tip.hidden = false;
+    const r = b.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight;
+    // Below the button unless it would run under the Send bar, then above.
+    const below = r.bottom + 6 + h <= $("bar").getBoundingClientRect().top;
+    tip.style.left = Math.max(16, Math.min(r.left, document.documentElement.clientWidth - 16 - w)) + "px";
+    tip.style.top = Math.max(8, below ? r.bottom + 6 : r.top - 6 - h) + "px";
+    b.setAttribute("aria-describedby", "tip");
+  }
+  function hideTip() {
+    $("tip").hidden = true;
+    document.querySelectorAll('[aria-describedby="tip"]').forEach((b) => b.removeAttribute("aria-describedby"));
+  }
+  // A choice replaces the box's text through the browser's own editing, so Ctrl+Z brings back what was typed; the input event
+  // it fires saves and grows the box as typing does.
+  function fill(t, text) {
+    t.focus(); t.select();
+    if (!document.execCommand("insertText", false, text)) { t.value = text; t.dispatchEvent(new Event("input", { bubbles: true })); }
+  }
+  function isNew(it) {
+    const last = (it.thread || []).filter((e) => e.who !== "you").pop();
+    return S.round > 1 && last && last.round === S.round;
+  }
+  function pill(cls, text, hidden) { return '<span class="pill ' + cls + '" title="' + esc(TIP[cls]) + '"' + (hidden ? " hidden" : "") + ">" + text + "</span>"; }
+  // A title is a Tab stop only while its card is collapsed, so Tab can reach it to open the card.
+  function openCard(it) {
+    const c = !!load("c" + it.n);
+    return '<article class="pt' + (c ? " collapsed" : "") + '" id="p-' + it.n + '">' +
+      '<div class="pt-head" role="button" tabindex="' + (c ? 0 : -1) + '" aria-expanded="' + !c + '"><span class="no">' + it.n + "</span><h2>" + inline(it.title) + "</h2>" +
+      (isNew(it) ? pill("new", "New answer") : "") + pill("draft", "Draft", true) + pill("sent", "Sent", true) + "</div>" +
+      '<div class="body">' + threadHtml(it) + replyHtml(it) + "</div></article>";
+  }
+  function closedCard(it) {
+    return '<details class="pt" id="p-' + it.n + '"><summary><span class="no">' + it.n +
+      '</span><span class="outcome"><b>' + inline(it.title) + "</b>" + (it.outcome ? ": " + inline(it.outcome) : "") + "</span>" +
+      (isNew(it) ? pill("new", "New answer") : "") + pill(it.status, LABEL[it.status] || it.status) + pill("draft", "Draft", true) + pill("sent", "Sent", true) + "</summary>" +
+      '<div class="inner">' + threadHtml(it) + replyHtml(it) + "</div></details>";
+  }
+
+  function toggleCard(card, focus) {
+    if (card.tagName === "DETAILS") {
+      card.open = !card.open;
+      if (focus) (card.open ? card.querySelector("textarea.field") : card.querySelector("summary")).focus();
+      return;
+    }
+    const now = card.classList.toggle("collapsed");
+    const head = card.querySelector(".pt-head");
+    head.setAttribute("aria-expanded", String(!now));
+    head.tabIndex = now ? 0 : -1;
+    save("c" + card.id.slice(2), now ? "1" : "");
+    if (!now) growAll(card);
+    if (focus) (now ? head : card.querySelector("textarea.field")).focus();
+  }
+
+  function render() {
+    document.title = S.title;
+    $("title").textContent = S.title;
+    $("eyebrow").textContent = "Discussion · round " + S.round + (S.updated ? " · updated " + S.updated : "");
+    if (S.topic) { $("topic").textContent = S.topic; $("topic").hidden = false; }
+    const byN = (a, b) => a.n - b.n;
+    const open = S.items.filter((it) => it.status === "open").sort(byN);
+    const closed = S.items.filter((it) => it.status !== "open").sort(byN);
+    const fresh = closed.filter(isNew).length;
+    const tally = {};
+    closed.forEach((it) => { tally[it.status] = (tally[it.status] || 0) + 1; });
+    $("counts").innerHTML = pill("open", open.length + " open") +
+      ["done", "parked", "dropped"].filter((s) => tally[s]).map((s) => pill(s, tally[s] + " " + s)).join("");
+    const show = !!load("pref:showclosed");
+    $("show-closed-label").hidden = !closed.length;
+    $("show-closed-text").textContent = "Show closed points (" + closed.length + ")" + (fresh ? " · " + fresh + " closed this round" : "");
+    $("show-closed").checked = show;
+    $("points").innerHTML = S.items.slice().sort(byN).map((it) => it.status === "open" ? openCard(it) : closedCard(it)).join("") +
+      (!open.length ? '<p class="topic">Every point is closed. Reply on a closed one to reopen it, or add a new one.</p>' : "");
+    showClosed(show);
+    $("show-closed").addEventListener("change", () => {
+      save("pref:showclosed", $("show-closed").checked ? "1" : "");
+      showClosed($("show-closed").checked);
+    });
+
+    document.querySelectorAll("textarea[data-n]").forEach((t) => {
+      t.value = box(t.dataset.n);
+      t.addEventListener("input", () => { put(t.dataset.n, t.value); grow(t); update(); });
+      t.addEventListener("keydown", onKey);
+    });
+    document.querySelectorAll("button.choice").forEach((b) => {
+      b.addEventListener("click", () => { hideTip(); fill($("r-" + b.dataset.n), b.dataset.reply); });
+      b.addEventListener("pointerenter", (e) => { if (e.pointerType === "mouse") showTip(b); });
+      b.addEventListener("pointerleave", hideTip);
+    });
+    $("points").querySelectorAll(".pt-head").forEach(bindHead);
+    document.querySelectorAll("details.pt").forEach((d) => d.addEventListener("toggle", () => {
+      d.querySelector("summary").tabIndex = d.open ? -1 : 0;
+      growAll(d);
+    }));
+    try { newPoints = JSON.parse(load("new") || "[]").filter((p) => p && typeof p.text === "string"); } catch (e) { newPoints = []; }
+    $("add").value = load("add");
+    $("add").addEventListener("input", () => { save("add", $("add").value.trim() ? $("add").value : ""); grow($("add")); update(); });
+    $("add").addEventListener("keydown", onKey);
+    renderNew();
+  }
+
+  function bindHead(h) {
+    h.addEventListener("click", () => toggleCard(h.closest(".pt"), false));
+    // Ctrl+Space is left to the page-wide handler, so it toggles once.
+    h.addEventListener("keydown", (e) => { if (!e.ctrlKey && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); toggleCard(h.closest(".pt"), true); } });
+  }
+  function collapse(card) {
+    if (card.tagName === "DETAILS") card.open = false;
+    else if (!card.classList.contains("collapsed")) toggleCard(card, false);
+  }
+
+  function showClosed(show) {
+    document.querySelectorAll("#points details.pt").forEach((card) => { card.hidden = !show; });
+    growAll($("points"));
+  }
+
+  // A host handed back a stored draft after the first render: put it into the boxes, cards and toggle.
+  function redraw() {
+    document.querySelectorAll("textarea[data-n]").forEach((t) => { t.value = box(t.dataset.n); });
+    try { newPoints = JSON.parse(load("new") || "[]").filter((p) => p && typeof p.text === "string"); } catch (e) { newPoints = []; }
+    $("add").value = load("add");
+    document.querySelectorAll("#points article.pt").forEach((card) => {
+      const collapsed = !!load("c" + card.id.slice(2));
+      card.classList.toggle("collapsed", collapsed);
+      const head = card.querySelector(".pt-head");
+      head.setAttribute("aria-expanded", String(!collapsed));
+      head.tabIndex = collapsed ? 0 : -1;
+    });
+    $("show-closed").checked = !!load("pref:showclosed");
+    showClosed($("show-closed").checked);
+    renderNew(); growAll(); update();
+  }
+
+  function renderNew() {
+    $("new-h").hidden = !newPoints.length;
+    // A new point collapses like the others, keyed by the number it shows.
+    $("new-list").innerHTML = newPoints.map((p, i) => {
+      const n = maxN + i + 1, c = !!load("c" + n);
+      return '<article class="pt' + (c ? " collapsed" : "") + '" id="p-' + n + '"><div class="pt-head" role="button" tabindex="' + (c ? 0 : -1) +
+        '" aria-expanded="' + !c + '"><span class="no">' + n + "</span><h2>" + esc(titleOf(p.text)) + "</h2>" + pill("draft", "Draft", true) + pill("sent", "Sent", true) + "</div>" +
+        '<div class="body"><div class="reply"><textarea class="field" data-new="' + i + '" aria-label="New point ' + n + '"></textarea></div></div></article>';
+    }).join("");
+    $("new-list").querySelectorAll(".pt-head").forEach(bindHead);
+    $("new-list").querySelectorAll("textarea").forEach((t) => {
+      const p = newPoints[+t.dataset.new];
+      t.value = p.text;
+      t.addEventListener("input", () => { p.text = t.value; storeNew(); grow(t); update(); t.closest(".pt").querySelector("h2").textContent = titleOf(t.value); });
+      // An emptied point that was never sent just goes; one that was sent stays, so the withdrawal is sent.
+      t.addEventListener("blur", () => { if (!p.text.trim() && !p.sent && !p.attempted) { newPoints.splice(newPoints.indexOf(p), 1); storeNew(); renderNew(); update(); } });
+      t.addEventListener("keydown", onKey);
+    });
+    growAll($("new-list"));
+    if (CODEX) {
+      document.querySelectorAll("#discuss-root button").forEach((b) => b.classList.add("btn"));
+      $("send").classList.add("btn-primary");
+      document.querySelectorAll("#discuss-root textarea").forEach((t) => {
+        t.classList.add("form-control");
+        if (t.dataset.n) t.setAttribute("aria-label", "Reply to point " + t.dataset.n);
+      });
+      $("add").setAttribute("aria-label", "Add a point");
+    }
+  }
+  function storeNew() { save("new", newPoints.length ? JSON.stringify(newPoints) : ""); }
+  // A new point's title: its first few words.
+  function titleOf(text) {
+    const words = text.trim().split(/\s+/).filter(Boolean);
+    return !words.length ? "New point" : words.slice(0, 8).join(" ") + (words.length > 8 ? "…" : "");
+  }
+
+  function fields() { return Array.from(document.querySelectorAll("textarea.field")).filter(shown); }
+  // Where Tab stops: the boxes, collapsed titles and "Add a point", in page order.
+  function stops() { return Array.from(document.querySelectorAll("textarea.field, .pt-head, summary")).filter((el) => el.tabIndex >= 0 && shown(el)); }
+  // Enter folds the new point and stays in "Add a point" for the next one; Tab leaves it open and moves into it.
+  function addPoint(fold) {
+    const t = $("add");
+    newPoints.push({ text: t.value.trim(), sent: "" }); storeNew();
+    save("c" + (maxN + newPoints.length), fold ? "1" : "");
+    t.value = ""; save("add", ""); grow(t);
+    renderNew(); update();
+  }
+  function onKey(e) {
+    if (e.isComposing || e.key !== "Enter") return;
+    if (e.ctrlKey || e.metaKey) { e.preventDefault(); send(); return; }
+    if (e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    const t = e.currentTarget;
+    if (t.id === "add") {
+      if (!t.value.trim()) return;
+      addPoint(true); t.focus();
+      t.scrollIntoView({ block: "nearest" });
+      return;
+    }
+    // Enter moves on and folds the point it leaves, which is what sets it apart from Tab.
+    const all = fields();
+    let next = all[all.indexOf(t) + 1];
+    const card = t.closest(".pt[id]");
+    if (card) collapse(card);
+    // Leaving an emptied new point removes it and redraws the new points, which can take the next box with it.
+    if (next && !next.isConnected) next = $("add");
+    if (next) next.focus();
+  }
+
+  // What this Send carries: new or changed text, and withdrawals of text sent earlier this round.
+  function changes() {
+    const out = [];
+    S.items.forEach((it) => {
+      const v = $("r-" + it.n).value.trim(), s = load("sent:" + it.n);
+      if (v && v !== s) out.push("#" + it.n + (s ? " (changed)" : "") + ": " + v);
+      else if (!v && (s || CODEX && load("attempted:" + it.n))) out.push("#" + it.n + " (withdrawn)");
+    });
+    newPoints.forEach((p, i) => {
+      const v = p.text.trim(), label = "New point #" + (maxN + i + 1);
+      if (v && v !== p.sent) out.push(label + (p.sent ? " (changed)" : "") + ": " + v);
+      else if (!v && (p.sent || CODEX && p.attempted)) out.push(label + " (withdrawn)");
+    });
+    const pending = $("add").value.trim();
+    if (pending) out.push("New point #" + (maxN + newPoints.length + 1) + ": " + pending);
+    return out;
+  }
+  function anySent() { return !!load("has-sent") || S.items.some((it) => load("sent:" + it.n)) || newPoints.some((p) => p.sent); }
+  function header(extra) {
+    return "[/discuss · " + S.slug + " · " + (anySent() ? "follow-up to round " : "replies to round ") + S.round +
+      (extra ? " · " + extra : "") + " · procedure: the discuss skill's SKILL.md]";
+  }
+  function clean(s) { return s.replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, ""); }
+  function compose() { const r = changes(); return r.length ? [header()].concat(r.map(clean)).join("\n\n") : ""; }
+  function bytes(s) { return enc.encode(s).length; }
+
+  function tags(card, value, sentText) {
+    const d = card.querySelector(".pill.draft"), s = card.querySelector(".pill.sent");
+    if (d) d.hidden = !value || value === sentText;
+    if (s) s.hidden = !sentText || value !== sentText;
+    card.classList.toggle("sent", !!sentText && value === sentText);
+  }
+  function update() {
+    document.querySelectorAll("#points .pt[id]").forEach((card) => {
+      const n = card.id.slice(2), v = $("r-" + n).value.trim();
+      tags(card, v, load("sent:" + n));
+      card.querySelectorAll("button.choice").forEach((b) => b.setAttribute("aria-pressed", String(v === b.dataset.reply.trim())));
+    });
+    $("new-list").querySelectorAll("article.pt").forEach((card, i) => tags(card, newPoints[i].text.trim(), newPoints[i].sent));
+    const n = changes().length;
+    const b = bytes(compose());
+    const sent = anySent();
+    $("delivery").hidden = !sent;
+    $("delivery").textContent = "Replies sent" + (BROWSER ? " — queued for Codex." : " to __ASSISTANT__.") + " Waiting for the next round." + (n ? " You have unsent changes below." : " You can edit a reply to send a follow-up.");
+    $("send").textContent = busy ? "Sending…" : sent && !n ? "Sent — waiting for reply" : sent ? "Send changes" : "Send to __ASSISTANT__";
+    $("send").disabled = busy || (sent && !n);
+    $("status").textContent = n ? n + (n === 1 ? " reply" : " replies") + " ready to send." + (anySent() ? " Earlier replies are already sent." : " Blank points stay as they are.")
+      : anySent() ? "Sent. Waiting for __ASSISTANT__; change a reply and Send again to send just the change." : "No replies yet. Blank points stay as they are.";
+    // In Claude the replies go through the page's store, so only a view without it is held to a comment's 4 KB.
+    $("meter").textContent = b <= LIMIT ? "" : CODEX || BROWSER || HOSTED ? (b / 1024).toFixed(1) + " KB"
+      : db ? "" : (b / 1024).toFixed(1) + " KB, over the 4 KB a comment can carry";
+  }
+
+  // After a send, the boxes keep their text and remember it as sent, so a reload shows it and a later Send carries only changes.
+  function markSent() {
+    save("has-sent", "1");
+    S.items.forEach((it) => save("sent:" + it.n, $("r-" + it.n).value.trim()));
+    const pending = $("add").value.trim();
+    if (pending) { newPoints.push({ text: pending, sent: "" }); $("add").value = ""; save("add", ""); grow($("add")); }
+    newPoints.forEach((p) => { p.sent = p.text.trim(); });
+    newPoints = newPoints.filter((p) => p.sent);
+    storeNew(); renderNew(); update();
+  }
+
+  const WHY = {
+    writers_only: "Only the page's editors can send to __ASSISTANT__.",
+    no_session: "No __ASSISTANT__ session is watching this page right now.",
+    off: "Sending to __ASSISTANT__ isn't available in this view.",
+    pending: "Sending to __ASSISTANT__ isn't available in this view yet.",
+  };
+  function fallback(reason) { $("err").textContent = (WHY[reason] || WHY.off) + " Copy your replies and paste them into the session's chat."; }
+
+  async function copy() {
+    const text = compose();
+    if (!text) { $("err").textContent = "Write a reply on at least one point first"; return; }
+    try {
+      await navigator.clipboard.writeText(text);
+      $("status").textContent = "Copied. Paste into the chat of the session that made this page.";
+    } catch (e) {
+      const b = $("copybox");
+      b.value = text; b.hidden = false; b.focus(); b.select();
+      $("status").textContent = "Copy the selected text below and paste it into the chat.";
+    }
+  }
+
+  async function send() {
+    if (busy) return;
+    let text = compose();
+    if (!text) { $("err").textContent = anySent() ? "Nothing new to send. Change a reply first." : "Write a reply on at least one point first"; return; }
+    $("err").textContent = "";
+    if (BROWSER || HOSTED) {
+      busy = true;
+      // Freeze the submitted snapshot until queue acknowledgement. Drafts survive failures.
+      const controls = Array.from(document.querySelectorAll("textarea.field, button"));
+      controls.forEach((el) => { el.disabled = true; });
+      $("send").textContent = "Sending…";
+      try {
+        // The attempt id lives in the draft, so a retry of the same text reuses it and the server sends it once.
+        let attempt;
+        try { attempt = JSON.parse(load("attempt") || "null"); } catch (_) {}
+        if (!attempt || attempt.text !== text) { attempt = { id: crypto.randomUUID(), text }; save("attempt", JSON.stringify(attempt)); }
+        if (HOSTED) await bridge("send", { ...attempt, round: S.round }, 60000);
+        else {
+          const response = await fetch("/replies", { method: "POST", headers: { "Content-Type": "application/json", "X-Discuss-Client": "browser" }, body: JSON.stringify({ ...attempt, round: S.round }) });
+          const result = await response.json();
+          if (!response.ok) throw Error(result.error || "Could not queue replies");
+        }
+        markSent();
+        save("attempt", "");
+        $("status").textContent = HOSTED ? "Sent to __ASSISTANT__. This page will refresh when the next round is ready."
+          : "Queued for Codex. This page will refresh when the next round is ready.";
+      } catch (e) {
+        $("err").textContent = e.message + " Your replies are still here. Copy replies is also available.";
+      } finally {
+        controls.forEach((el) => { el.disabled = false; });
+        busy = false;
+        update();
+      }
+      return;
+    }
+    if (CODEX) {
+      if (!window.openai?.sendFollowUpMessage) { fallback("off"); return; }
+      busy = true;
+      try {
+        // Remember only the attempt, so clearing text later can explicitly withdraw it.
+        // This never suppresses a retry or labels a draft as delivered.
+        S.items.forEach((it) => { if ($("r-" + it.n).value.trim()) put("attempted:" + it.n, "1"); });
+        const pending = $("add").value.trim();
+        if (pending) { newPoints.push({ text: pending, sent: "" }); $("add").value = ""; save("add", ""); }
+        newPoints.forEach((p) => { if (p.text.trim()) p.attempted = true; });
+        storeNew(); renderNew(); update();
+        // The bridge can resolve when it opens confirmation, before the user sends.
+        // Keep all drafts resendable; never mark them delivered from this promise.
+        await window.openai.sendFollowUpMessage({ prompt: text, title: "Send discussion replies" });
+        $("status").textContent = "Review the send in Codex. Replies stay here until the next round appears in chat.";
+      } catch (e) {
+        $("err").textContent = "Send was cancelled or unavailable. Try again, or copy your replies into chat.";
+      } finally {
+        busy = false;
+        $("send").disabled = false;
+        $("send").textContent = "Send to __ASSISTANT__";
+      }
+      return;
+    }
+    if (!comments) { fallback(canSend); return; }
+    busy = true;
+    const controls = Array.from(document.querySelectorAll("textarea.field, button"));
+    controls.forEach((el) => { el.disabled = true; });
+    $("send").textContent = "Sending…";
+    try {
+      let anchor, can;
+      try { [anchor, can] = await Promise.all([comments.anchorFor($("top")), comments.canSendToClaude()]); }
+      catch (e) { can = "off"; }
+      canSend = can;
+      if (can !== "available") { fallback(can); return; }
+      // The comment is what the session's chat shows, so the replies go in the page's store and the comment is one line naming
+      // them. If the store can't take them, a send that fits a comment's 4 KB carries them itself.
+      let stored = "";
+      if (db) {
+        const id = "r" + S.round + "-" + Date.now().toString(36);
+        try { await db.doc("rounds/" + id).set({ slug: S.slug, round: S.round, at: new Date().toISOString(), text: text }); stored = id; }
+        catch (e) {
+          if (bytes(text) > LIMIT) { $("err").textContent = "Couldn't save the long replies (" + (e && e.code || "error") + "). Copy them into the chat instead."; return; }
+        }
+      } else if (bytes(text) > LIMIT) {
+        $("err").textContent = "That's over the 4 KB a comment can carry, and this view can't save it to the page's store. Copy your replies into the chat instead."; return;
+      }
+      if (stored) { const n = changes().length; text = header(n + (n === 1 ? " reply" : " replies") + " in store doc rounds/" + stored); }
+      await comments.sendToClaude({ anchor: anchor, text: text });
+      markSent();
+      $("status").textContent = "Sent. __ASSISTANT__ is answering; this page reloads with the answers. Change a reply and Send again to send just the change.";
+      $("err").textContent = "";
+    } catch (e) {
+      const code = e && e.code;
+      if (code === "consent_required") $("err").textContent = "The page needs your OK to comment as you. Press Send again and allow it.";
+      else if (code === "claude_unavailable") fallback("no_session");
+      else if (code === "forbidden" || code === "not_granted" || code === "capability_disabled" || code === "capability_removed") fallback("off");
+      else if (code === "rate_limited") $("err").textContent = "Too many sends in a row. Wait a minute, then press Send again.";
+      else if (code === "invalid") $("err").textContent = "__ASSISTANT__ couldn't take that text. Remove unusual characters, then send again.";
+      else $("err").textContent = "Couldn't send. Press Send again, or copy your replies into the chat.";
+    } finally {
+      controls.forEach((el) => { el.disabled = false; });
+      busy = false;
+      update();
+    }
+  }
+
+  render();
+  growAll();
+  update();
+  window.addEventListener("resize", () => growAll());
+  window.addEventListener("scroll", hideTip, { passive: true });  // the page moved under a still pointer
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !e.target.closest("textarea.field")) { e.preventDefault(); send(); }
+    if (e.ctrlKey && (e.code === "Space" || e.key === " ")) {
+      const card = document.activeElement && document.activeElement.closest(".pt[id]");
+      if (card) { e.preventDefault(); toggleCard(card, true); }
+    }
+    // Alt+1 to Alt+3 put that choice in the focused point's box. Matched by key position, so a layout's Alt+digit character
+    // doesn't matter; Ctrl stays out, so AltGr (Ctrl+Alt) still types.
+    if (e.altKey && !e.ctrlKey && !e.metaKey && /^Digit[1-3]$/.test(e.code)) {
+      const card = document.activeElement && document.activeElement.closest(".pt[id]");
+      const b = card && card.querySelectorAll("button.choice")[+e.code.slice(5) - 1];
+      if (b) { e.preventDefault(); hideTip(); fill($("r-" + b.dataset.n), b.dataset.reply); }
+    }
+    // Ctrl+Alt+1 shows or hides the closed points; Ctrl+Alt+2 goes to "Add a point". Both sit under one hand, and neither is
+    // a browser shortcut (Ctrl+1 and Ctrl+2 switch tabs).
+    if (e.ctrlKey && e.altKey && !e.metaKey && !e.shiftKey && (e.code === "Digit1" || e.code === "Digit2")) {
+      e.preventDefault();
+      if (e.code === "Digit2") $("add").focus();
+      else if (!$("show-closed-label").hidden) $("show-closed").click();
+    }
+    // Tab runs through the points and "Add a point" and wraps round, never reaching the Send bar's buttons. Tab in
+    // "Add a point" with text in it first turns the text into a new point and moves to it.
+    if (e.key === "Tab" && !e.ctrlKey && !e.altKey && !e.metaKey) {
+      const at = document.activeElement, all = stops();
+      if (!e.shiftKey && at === $("add")) {
+        e.preventDefault();
+        if (!$("add").value.trim()) { if (all[0]) all[0].focus(); }
+        else { addPoint(false); $("new-list").querySelector("article.pt:last-child textarea").focus(); }
+      } else if (e.shiftKey && at === all[0]) { e.preventDefault(); $("add").focus(); }
+    }
+  });
+  // A box reached by keyboard comes to rest just above the Send bar, with its point's text above it, rather than wherever
+  // it lay on screen; a click leaves the page where it is, only keeping the box clear of the bar.
+  let pointing = false;
+  document.addEventListener("pointerdown", () => { pointing = true; }, true);
+  document.addEventListener("keydown", () => { pointing = false; }, true);
+  document.addEventListener("focusin", (e) => {
+    const t = e.target;
+    if (!t.matches || !t.matches("textarea.field, .pt-head, summary")) return;
+    if (pointing) { t.scrollIntoView({ block: "nearest" }); return; }
+    const el = t.matches("textarea.field") ? t.closest(".reply") || t : t;
+    window.scrollBy(0, el.getBoundingClientRect().bottom + 12 - $("bar").getBoundingClientRect().top);
+  });
+  // An error is about the last Send; editing a reply makes it stale. (update() can't clear it: it runs after a failed send.)
+  document.addEventListener("input", (e) => { if (e.target.matches("textarea.field")) $("err").textContent = ""; });
+  $("send").addEventListener("click", send);
+  $("copy").addEventListener("click", copy);
+  if (BROWSER) {
+    document.querySelector(".foot").textContent = "Send queues your replies into this Codex chat. This page refreshes when Codex writes the next round. Drafts stay in this browser until you send them.";
+    // Only the local server provides /version; exported HTML still offers Copy replies.
+    if (location.protocol === "http:" && location.hostname === "127.0.0.1") {
+      setInterval(async () => {
+        if (busy) return;
+        try {
+          const response = await fetch("/version", { cache: "no-store" });
+          if (!response.ok) return;
+          const latest = await response.json();
+          if (latest.round > S.round) {
+            if (!changes().length) location.reload();
+            else $("status").textContent = "New answers are ready. Send your current edits first; they will be kept with this round.";
+          }
+        } catch (_) {}
+      }, 2000);
+    }
+  } else if (HOSTED) {
+    document.querySelector(".foot").textContent = "Send passes your replies to __ASSISTANT__. This page refreshes when the next round is ready. Drafts stay in this browser until you send them.";
+    window.addEventListener("message", onBridge);
+    if (framed) {
+      let polling = false;
+      setInterval(async () => {
+        if (busy || polling) return;
+        polling = true;
+        try {
+          const latest = await bridge("version");
+          if (latest && latest.round > S.round) {
+            if (!changes().length) bridge("reload").catch(() => {});
+            else $("status").textContent = "New answers are ready. Send your current edits first; they will be kept with this round.";
+          }
+        } catch (_) {
+        } finally { polling = false; }
+      }, 3000);
+    }
+  } else if (CODEX) {
+    document.querySelector(".foot").textContent = "Send opens a follow-up in this Codex chat. Confirm it there; the next round appears as a new page in chat. This older round does not refresh.";
+    window.addEventListener("openai:set_globals", (event) => {
+      if (restoreWidget(event.detail?.globals?.widgetState)) redraw();
+    });
+  } else if (window.claude && typeof window.claude.use === "function") {
+    window.claude.use("comments").then(async (c) => {
+      comments = c;
+      if (!c) { canSend = "off"; return; }
+      try { canSend = await c.canSendToClaude(); } catch (e) { canSend = "off"; }
+    }).catch(() => { canSend = "off"; });
+    window.claude.use("db").then((d) => { db = d; }).catch(() => {});
+  } else {
+    canSend = "off";
+  }
+})();
+</script>
