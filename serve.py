@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shutil
 import subprocess
 import threading
@@ -17,6 +18,10 @@ from pathlib import Path
 from render import render_state
 
 MAX_BODY = 256 * 1024
+MAX_IMAGE = 1024 * 1024  # The page shrinks anything larger before sending it.
+MAX_DRAIN = 16 * 1024 * 1024  # The most of a refused request read so its sender still gets the answer.
+IMAGE_TYPES = {"image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/webp": "webp"}
+IMAGE_PATH = re.compile(r"^/images/([0-9a-f-]{36}\.(png|jpg|gif|webp))$")
 
 
 def write_json(path: Path, value: dict) -> None:
@@ -34,6 +39,8 @@ class DiscussionServer(ThreadingHTTPServer):
         self.codex = codex
         self.submissions = self.state_path.parent / (self.state_path.stem + "-replies")
         self.submissions.mkdir(exist_ok=True)
+        self.images = self.state_path.parent / (self.state_path.stem + "-images")
+        self.images.mkdir(exist_ok=True)
         self.submit_lock = threading.Lock()
         super().__init__(("127.0.0.1", port), Handler)
         self.origin = f"http://127.0.0.1:{self.server_port}"
@@ -94,7 +101,7 @@ class Handler(BaseHTTPRequestHandler):
         pass  # Never log discussion text or arbitrary request paths.
 
     def respond(self, status: int, value, content_type="application/json; charset=utf-8"):
-        content = value.encode("utf-8") if isinstance(value, str) else json.dumps(value).encode("utf-8")
+        content = value if isinstance(value, bytes) else value.encode("utf-8") if isinstance(value, str) else json.dumps(value).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(content)))
@@ -104,6 +111,16 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Referrer-Policy", "no-referrer")
         self.end_headers()
         self.wfile.write(content)
+
+    def refuse_size(self, size: int, message: str):
+        """Takes what is being sent before answering: closing on unread data resets the socket, and the sender loses the answer."""
+        left = min(size, MAX_DRAIN)
+        while left > 0:
+            chunk = self.rfile.read(min(left, 64 * 1024))
+            if not chunk:
+                break
+            left -= len(chunk)
+        return self.respond(413, {"error": message})
 
     def valid_host(self):
         return self.headers.get("Host") == self.server.origin.removeprefix("http://")
@@ -117,6 +134,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self.respond(200, render_state(state, "browser"), "text/html; charset=utf-8")
             if self.path == "/version":
                 return self.respond(200, {"round": state["round"]})
+            image = IMAGE_PATH.match(self.path)
+            if image and (self.server.images / image[1]).is_file():
+                kind = "jpeg" if image[2] == "jpg" else image[2]
+                return self.respond(200, (self.server.images / image[1]).read_bytes(), "image/" + kind)
             self.respond(404, {"error": "Not found"})
         except (ValueError, OSError):
             self.respond(503, {"error": "Discussion state is being updated; try again"})
@@ -125,6 +146,8 @@ class Handler(BaseHTTPRequestHandler):
         if (not self.valid_host() or self.headers.get("Origin") != self.server.origin
                 or self.headers.get("X-Discuss-Client") != "browser"):
             return self.respond(403, {"error": "Only this discussion page can submit replies"})
+        if self.path == "/images":
+            return self.save_image()
         if self.path != "/replies":
             return self.respond(404, {"error": "Not found"})
         if self.headers.get("Content-Type") != "application/json":
@@ -132,7 +155,7 @@ class Handler(BaseHTTPRequestHandler):
         try:
             size = int(self.headers.get("Content-Length", "0"))
             if not 0 < size <= MAX_BODY:
-                return self.respond(413, {"error": "Replies exceed the 256 KiB request limit"})
+                return self.refuse_size(size, "Replies exceed the 256 KiB request limit")
             body = json.loads(self.rfile.read(size))
             status, response = self.server.submit(body)
             self.respond(status, response)
@@ -140,6 +163,22 @@ class Handler(BaseHTTPRequestHandler):
             self.respond(400, {"error": "Invalid reply submission"})
         except OSError:
             self.respond(500, {"error": "Could not save replies; check the chat before retrying"})
+
+    def save_image(self):
+        kind = IMAGE_TYPES.get(self.headers.get("Content-Type"))
+        if not kind:
+            return self.respond(415, {"error": "Expected a PNG, JPEG, GIF or WebP image"})
+        try:
+            size = int(self.headers.get("Content-Length", "0"))
+            if not 0 < size <= MAX_IMAGE:
+                return self.refuse_size(size, "Images can be at most 1 MiB")
+            name = f"{uuid.uuid4()}.{kind}"
+            (self.server.images / name).write_bytes(self.rfile.read(size))
+            self.respond(200, {"path": "/images/" + name})
+        except ValueError:
+            self.respond(400, {"error": "Invalid image"})
+        except OSError:
+            self.respond(500, {"error": "Could not save that image"})
 
 
 def main():

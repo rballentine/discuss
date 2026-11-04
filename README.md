@@ -4,9 +4,10 @@ An agent skill for working through a long numbered list with your AI assistant o
 
 When Claude or Codex hands you eight numbered questions, answering in chat means quoting and renumbering
 by hand. `/discuss` puts the points on a page: one card per point with the assistant's position, a reply box
-and two or three one-click answers written for that point. You reply under the points you care about and
+and two or three one-click answers written for that point, plus Close to settle it as it stands. You reply under the points you care about and
 press **Send** once. The assistant answers every point and republishes, and the page reloads with the answers
-and fresh boxes, round after round, until every point is settled.
+and fresh boxes, round after round, until every point is settled. On a Claude Artifact page, the Codex
+browser page or a page in a project's own app you can also paste a screenshot into any box, or drop an image on it.
 
 ## Install
 
@@ -22,8 +23,9 @@ Update with `git -C <that folder> pull`. The scripts need Python 3 and nothing e
 
 ## Use
 
-After a reply with numbered points, type `/discuss` (Claude Code) or `$discuss` (Codex), optionally with a
-title or which list you mean. Asking for "a discussion page" works too.
+The assistant opens a page on its own when a reply would carry six or more numbered points you may want to
+answer. For a shorter list, or one it left in chat, type `/discuss` (Claude Code) or `$discuss` (Codex),
+optionally with a title or which list you mean. Asking for "a discussion page" works too.
 
 ## What each client needs
 
