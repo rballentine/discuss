@@ -66,6 +66,13 @@ button:disabled { cursor: default; opacity: .65; }
 .you .msg { border-left: 2px solid var(--line-strong); padding-left: 10px; color: var(--muted); }
 .msg code { font: 13px var(--mono); background: var(--park-bg); padding: 1px 4px; border-radius: 4px; }
 .msg a { color: var(--accent); }
+.msg img { display: block; max-width: 100%; max-height: 28rem; margin: 6px 0; border: 1px solid var(--line); border-radius: 6px; }
+/* The images a box's text holds, under the box. */
+.thumbs { display: flex; flex-wrap: wrap; gap: 8px; }
+.thumb { position: relative; display: flex; }
+.thumb img { max-width: 10rem; max-height: 6rem; border: 1px solid var(--line); border-radius: 6px; }
+.thumb button { position: absolute; top: 4px; right: 4px; padding: 2px 6px; background: var(--surface); }
+.thumb button:hover { background: var(--park-bg); }
 .reply { margin: 14px 0 0 calc(1.6em + 10px); display: grid; gap: 8px; }
 textarea { width: 100%; box-sizing: border-box; min-height: 2.6em; resize: none; overflow: hidden; font: 15px/1.5 var(--sans);
   color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
@@ -80,6 +87,26 @@ textarea.field, .pt-head, summary { scroll-margin-top: 16px; scroll-margin-botto
 .choice.first { font-weight: 600; }
 .choice[aria-pressed="true"] { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); }
 .choice[aria-pressed="true"]::before { content: "\2713"; content: "\2713" / ""; margin-right: 5px; }  /* a tick */
+/* Close ends the row on every open point. A closing card folds, dashed, its number a green tick and its tag and Undo after
+   its title (below it on a narrow screen), until the next Send carries the close. */
+.closebtn { margin-left: auto; color: var(--muted); border-color: var(--line); }
+.closebtn::before, .done::before { content: "\2713"; content: "\2713" / ""; }
+.closebtn::before { margin-right: 5px; }
+.closebtn:hover, .closebtn[aria-pressed="true"] { color: var(--ok); border-color: var(--ok); background: var(--ok-bg); }
+.pt-top { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 8px; row-gap: 6px; }
+.pt-top .pt-head { flex: 1 1 14rem; min-width: 0; }
+.done, .closing-row { display: none; }
+.done { flex: none; align-self: center; width: 1.6em; height: 1.6em; border-radius: 50%; background: var(--ok); color: var(--surface);
+  font: 600 13px/1.6 var(--sans); text-align: center; }
+.closing-row { margin: -3px 0 -3px auto; align-items: baseline; gap: 2px; }
+.undo { border-color: transparent; color: var(--accent); padding: 3px 8px; }
+.pt.closing { border-style: dashed; border-color: var(--line-strong); background: transparent; }
+.pt.closing.sent { border-color: var(--ok); }
+.pt.closing .no, .pt.closing .pill.new, .pt.closing .pt-head::after { display: none; }
+.pt.closing .done { display: inline-block; }
+.pt.closing .closing-row { display: inline-flex; }
+.pt.closing h2 { color: var(--muted); font-weight: 500; }
+.pill.closes { background: var(--ok-bg); color: var(--ok); }
 .tip { position: fixed; z-index: 10; box-sizing: border-box; max-width: min(22rem, calc(100vw - 32px)); padding: 8px 10px;
   background: var(--surface); color: var(--ink); border: 1px solid var(--line-strong); border-radius: 8px;
   box-shadow: 0 6px 20px rgb(0 0 0 / .14); font-size: 13px; line-height: 1.45; white-space: pre-line; overflow-wrap: anywhere; pointer-events: none; }
@@ -139,8 +166,9 @@ details.pt .inner { padding: 4px 18px 16px; }
       <div><kbd>Tab</kbd> next box or collapsed point · <kbd>Shift</kbd>+<kbd>Tab</kbd> back</div>
       <div><kbd>Enter</kbd> next point, collapsing this one · <kbd>Shift</kbd>+<kbd>Enter</kbd> new line</div>
       <div><kbd>Ctrl</kbd>+<kbd>Space</kbd> collapse · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> send</div>
-      <div><kbd>Alt</kbd>+<kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> put that choice in the box</div>
+      <div><kbd>Alt</kbd>+<kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> put that choice in the box · <kbd>Alt</kbd>+<kbd>0</kbd> close the point, or reopen it</div>
       <div><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>1</kbd> show closed points · <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>2</kbd> add a point</div>
+      <div id="keys-images" hidden><kbd>Ctrl</kbd>+<kbd>V</kbd> paste an image into a box, or drop one on it</div>
     </div>
     <p class="err" id="err" role="alert"></p>
     <p id="storage-warning" role="status" hidden></p>
@@ -162,18 +190,28 @@ details.pt .inner { padding: 4px 18px 16px; }
   const MEMORY = CODEX || HOSTED;  // drafts live in `draft`; the host stores them
   const BRIDGE = "discuss/1";
   const LIMIT = 4096;
+  // A reply carries an image as a Markdown image after its text, so drafts, sent state, follow-ups and Copy replies need
+  // nothing new. Only a client that can store one reads the mark as an image.
+  const IMAGE = BROWSER ? /!\[([^\]\n]*)\]\((\/images\/[\w.-]+)\)/g : CODEX ? null : /!\[([^\]\n]*)\]\((\/_blob\/[\w-]+)\)/g;
+  const IMAGE_MAX = 1024 * 1024;  // What the session reads back without asking for more.
+  // A hosted page's opaque origin can load nothing of its app's, so its <img> names the mark's path and the app hands over
+  // the picture (fillImages).
+  const IMG_SRC = HOSTED ? "data-path" : "src";
   const LABEL = { open: "Open", done: "Done", parked: "Parked", dropped: "Dropped" };
   const TIP = {
     open: "Waiting on you or __ASSISTANT__", done: "Settled: agreed, and any work it needed is finished",
     parked: "On hold until the trigger __ASSISTANT__ named", dropped: "You dropped this topic",
     new: "__ASSISTANT__ answered this point this round", draft: "A reply you haven't sent yet", sent: "Sent; waiting for __ASSISTANT__'s answer",
+    closes: "Settled as it stands: __ASSISTANT__ does no more work on it. Undo reopens it",
   };
+  const CLOSE_TIP = "Settle this point as it stands, with no more work from __ASSISTANT__. It folds now and closes when you send; a reply in its box goes with it.";
   const $ = (id) => document.getElementById(id);
   const enc = new TextEncoder();
   const maxN = Math.max.apply(null, S.items.map((it) => it.n));
   let comments = null, db = null, canSend = "pending", busy = false;
   let newPoints = [];  // points added on this page this round: {text, sent}
   let draft = {}, persistTimer, edited = false;
+  let assetsReady = Promise.resolve(null), uploading = 0;
   function restoreDraft(saved) {
     // Host snapshots may arrive after more typing; never replace local edits with an echo.
     if (edited) return false;
@@ -187,7 +225,8 @@ details.pt .inner { padding: 4px 18px 16px; }
   if (CODEX) restoreWidget(window.openai && window.openai.widgetState);
 
   // The host bridge: page -> app {discuss, id, type, payload}; app -> page {discuss, re, ok, result | error}.
-  // Requests: send {id, text, round}, draft {slug, round, draft}, version (answers {round}) and reload. The app
+  // Requests: send {id, text, round}, draft {slug, round, draft}, version (answers {round}), reload, upload {blob}
+  // (stores an image, answers {id} for its /_blob/<id> mark) and image {path} (answers {url}, a data: URL). The app
   // may post {discuss, type: "init", draft} to restore drafts.
   const framed = HOSTED && window.parent !== window;
   let seq = 0;
@@ -238,7 +277,8 @@ details.pt .inner { padding: 4px 18px 16px; }
 
   function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
   function inline(s) {
-    return esc(s)
+    const safe = esc(s);
+    return (IMAGE ? safe.replace(IMAGE, "<img " + IMG_SRC + '="$2" alt="$1">') : safe)
       .replace(/`([^`]+)`/g, "<code>$1</code>")
       .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
       .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
@@ -252,7 +292,8 @@ details.pt .inner { padding: 4px 18px 16px; }
     }).join("");
   }
 
-  // Browser storage. Per round: a box's text (its number), what was sent from it ("sent:<n>"), new points ("new"),
+  // Browser storage. Per round: a box's text (its number), what was sent from it ("sent:<n>"), a close ("close:<n>", and
+  // "sentclose:<n>" once sent), new points ("new"),
   // the Add box ("add") and collapsed cards ("c<n>"); a new round starts clean. Keys starting "pref:" last the whole discussion.
   // Codex and hosted pages keep the same keys in `draft` and hand it to their host to store.
   function key(k) { return "discuss:" + S.slug + (k.startsWith("pref:") ? ":" : ":r" + S.round + ":") + k; }
@@ -265,6 +306,7 @@ details.pt .inner { padding: 4px 18px 16px; }
   // A closed <details> hides its content without clearing offsetParent, so ask the browser directly.
   function shown(t) { return t.checkVisibility ? t.checkVisibility() : t.getClientRects().length > 0; }
   function grow(t) {
+    thumbs(t);
     if (!shown(t)) return;
     t.style.height = "auto"; t.style.height = t.scrollHeight + 2 + "px";
     // The caret counts as visible behind the sticky Send bar, so lift the end of a box being typed at clear of it.
@@ -274,6 +316,35 @@ details.pt .inner { padding: 4px 18px 16px; }
     }
   }
   function growAll(root) { (root || document).querySelectorAll("textarea.field").forEach(grow); }
+
+  // A box shows only what was typed; its images wait under it, in t.marks, each with a remove button. Everywhere else a reply is
+  // one string, its text then its marks: reply() puts a box's together and fillBox() takes one apart.
+  function reply(t) { const m = t.marks || []; return m.length ? (t.value.trim() + " " + m.join(" ")).trim() : t.value; }
+  function fillBox(t, text) {
+    t.marks = IMAGE && text.match(IMAGE) || [];
+    t.value = t.marks.length ? text.replace(IMAGE, "").trimEnd() : text;
+  }
+  function thumbs(t) {
+    if (!IMAGE) return;
+    const marks = t.marks || [], key = marks.join();
+    if ((t.dataset.images || "") === key) return;
+    t.dataset.images = key;
+    let strip = t.nextElementSibling;
+    if (!strip || !strip.classList.contains("thumbs")) {
+      strip = document.createElement("div");
+      strip.className = "thumbs";
+      strip.addEventListener("click", (e) => {
+        const b = e.target.closest("button");
+        if (!b) return;
+        t.marks.splice(+b.dataset.i, 1);
+        t.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+      t.after(strip);
+    }
+    strip.hidden = !marks.length;
+    strip.innerHTML = marks.map((m, i) => '<span class="thumb"><img ' + IMG_SRC + '="' + esc(m.slice(m.lastIndexOf("(") + 1, -1)) + '" alt="Image ' + (i + 1) + '">' +
+      '<button type="button" tabindex="-1" aria-label="Remove image ' + (i + 1) + '" data-i="' + i + '">\u00d7</button></span>').join("");
+  }
 
   function threadHtml(it) {
     return '<div class="thread">' + (it.thread || []).map((e) =>
@@ -285,18 +356,20 @@ details.pt .inner { padding: 4px 18px 16px; }
       choicesHtml(it) + "</div>";
   }
   // An open point's latest answer may offer up to three replies; a button's hover shows its reply, and a click puts it in the box.
-  // Choices stay out of the Tab order, so Tab goes from box to box.
+  // Close ends the row on every open point. Buttons stay out of the Tab order, so Tab goes from box to box.
   function choicesHtml(it) {
+    if (it.status !== "open") return "";
     const last = it.thread[it.thread.length - 1];
-    const offered = it.status === "open" && last.who !== "you" && Array.isArray(last.choices) ? last.choices : [];
-    return offered.length ? '<div class="choices">' + offered.map((c, i) => '<button type="button" class="choice' + (i ? '"' : ' first" aria-description="recommended"') +
-      ' tabindex="-1" aria-pressed="false" data-reply="' + esc(c.reply) + '" data-n="' + it.n + '">' + esc(c.label) + "</button>").join("") + "</div>" : "";
+    const offered = last.who !== "you" && Array.isArray(last.choices) ? last.choices : [];
+    return '<div class="choices">' + offered.map((c, i) => '<button type="button" class="choice' + (i ? '"' : ' first" aria-description="recommended"') +
+      ' tabindex="-1" aria-pressed="false" data-reply="' + esc(c.reply) + '" data-n="' + it.n + '">' + esc(c.label) + "</button>").join("") +
+      '<button type="button" class="closebtn" tabindex="-1" aria-pressed="false" data-n="' + it.n + '">Close</button></div>';
   }
   // The page's own tooltip, so the reply shows at once (a native title waits about half a second). Mouse only: a tap just fills the box.
   function showTip(b) {
-    const tip = $("tip");
-    const key = "Alt+" + (Array.prototype.indexOf.call(b.parentNode.children, b) + 1);
-    tip.innerHTML = "<b>" + (b.classList.contains("first") ? "Recommended · " : "") + key + "</b>" + esc(b.dataset.reply);
+    const tip = $("tip"), close = b.classList.contains("closebtn");
+    const key = "Alt+" + (close ? 0 : Array.prototype.indexOf.call(b.parentNode.children, b) + 1);
+    tip.innerHTML = "<b>" + (b.classList.contains("first") ? "Recommended · " : "") + key + "</b>" + esc(close ? CLOSE_TIP : b.dataset.reply);
     tip.hidden = false;
     const r = b.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight;
     // Below the button unless it would run under the Send bar, then above.
@@ -320,12 +393,15 @@ details.pt .inner { padding: 4px 18px 16px; }
     return S.round > 1 && last && last.round === S.round;
   }
   function pill(cls, text, hidden) { return '<span class="pill ' + cls + '" title="' + esc(TIP[cls]) + '"' + (hidden ? " hidden" : "") + ">" + text + "</span>"; }
-  // A title is a Tab stop only while its card is collapsed, so Tab can reach it to open the card.
+  // A title is a Tab stop only while its card is collapsed, so Tab can reach it to open the card. Undo sits outside the title,
+  // which is itself a button.
   function openCard(it) {
     const c = !!load("c" + it.n);
-    return '<article class="pt' + (c ? " collapsed" : "") + '" id="p-' + it.n + '">' +
-      '<div class="pt-head" role="button" tabindex="' + (c ? 0 : -1) + '" aria-expanded="' + !c + '"><span class="no">' + it.n + "</span><h2>" + inline(it.title) + "</h2>" +
+    return '<article class="pt' + (c ? " collapsed" : "") + (load("close:" + it.n) ? " closing" : "") + '" id="p-' + it.n + '"><div class="pt-top">' +
+      '<div class="pt-head" role="button" tabindex="' + (c ? 0 : -1) + '" aria-expanded="' + !c + '"><span class="no">' + it.n + "</span>" +
+      '<span class="done" role="img" aria-label="Point ' + it.n + ', closing"></span><h2>' + inline(it.title) + "</h2>" +
       (isNew(it) ? pill("new", "New answer") : "") + pill("draft", "Draft", true) + pill("sent", "Sent", true) + "</div>" +
+      '<span class="closing-row">' + pill("closes", "Closes when you send") + '<button type="button" class="undo" tabindex="-1" data-n="' + it.n + '">Undo</button></span></div>' +
       '<div class="body">' + threadHtml(it) + replyHtml(it) + "</div></article>";
   }
   function closedCard(it) {
@@ -348,6 +424,20 @@ details.pt .inner { padding: 4px 18px 16px; }
     save("c" + card.id.slice(2), now ? "1" : "");
     if (!now) growAll(card);
     if (focus) (now ? head : card.querySelector("textarea.field")).focus();
+  }
+
+  // Close settles an open point as it stands: its card folds at once, and the next Send carries "#n (close)" with any reply
+  // in its box. Close again, Undo or Alt+0 reopens the point and unfolds it.
+  function setClosing(card, on) {
+    save("close:" + card.id.slice(2), on ? "1" : "");
+    card.classList.toggle("closing", on);
+    update();
+  }
+  function closePoint(card, focus) {
+    const on = !card.classList.contains("closing");
+    setClosing(card, on);
+    if (on) collapse(card);
+    else if (card.classList.contains("collapsed")) toggleCard(card, focus);
   }
 
   function render() {
@@ -376,8 +466,8 @@ details.pt .inner { padding: 4px 18px 16px; }
     });
 
     document.querySelectorAll("textarea[data-n]").forEach((t) => {
-      t.value = box(t.dataset.n);
-      t.addEventListener("input", () => { put(t.dataset.n, t.value); grow(t); update(); });
+      fillBox(t, box(t.dataset.n));
+      t.addEventListener("input", () => { put(t.dataset.n, reply(t)); grow(t); update(); });
       t.addEventListener("keydown", onKey);
     });
     document.querySelectorAll("button.choice").forEach((b) => {
@@ -385,14 +475,20 @@ details.pt .inner { padding: 4px 18px 16px; }
       b.addEventListener("pointerenter", (e) => { if (e.pointerType === "mouse") showTip(b); });
       b.addEventListener("pointerleave", hideTip);
     });
+    document.querySelectorAll("button.closebtn").forEach((b) => {
+      b.addEventListener("click", () => { hideTip(); closePoint($("p-" + b.dataset.n), false); });
+      b.addEventListener("pointerenter", (e) => { if (e.pointerType === "mouse") showTip(b); });
+      b.addEventListener("pointerleave", hideTip);
+    });
+    document.querySelectorAll("button.undo").forEach((b) => b.addEventListener("click", () => closePoint($("p-" + b.dataset.n), false)));
     $("points").querySelectorAll(".pt-head").forEach(bindHead);
     document.querySelectorAll("details.pt").forEach((d) => d.addEventListener("toggle", () => {
       d.querySelector("summary").tabIndex = d.open ? -1 : 0;
       growAll(d);
     }));
     try { newPoints = JSON.parse(load("new") || "[]").filter((p) => p && typeof p.text === "string"); } catch (e) { newPoints = []; }
-    $("add").value = load("add");
-    $("add").addEventListener("input", () => { save("add", $("add").value.trim() ? $("add").value : ""); grow($("add")); update(); });
+    fillBox($("add"), load("add"));
+    $("add").addEventListener("input", () => { const v = reply($("add")); save("add", v.trim() ? v : ""); grow($("add")); update(); });
     $("add").addEventListener("keydown", onKey);
     renderNew();
   }
@@ -414,12 +510,13 @@ details.pt .inner { padding: 4px 18px 16px; }
 
   // A host handed back a stored draft after the first render: put it into the boxes, cards and toggle.
   function redraw() {
-    document.querySelectorAll("textarea[data-n]").forEach((t) => { t.value = box(t.dataset.n); });
+    document.querySelectorAll("textarea[data-n]").forEach((t) => { fillBox(t, box(t.dataset.n)); });
     try { newPoints = JSON.parse(load("new") || "[]").filter((p) => p && typeof p.text === "string"); } catch (e) { newPoints = []; }
-    $("add").value = load("add");
+    fillBox($("add"), load("add"));
     document.querySelectorAll("#points article.pt").forEach((card) => {
       const collapsed = !!load("c" + card.id.slice(2));
       card.classList.toggle("collapsed", collapsed);
+      card.classList.toggle("closing", !!load("close:" + card.id.slice(2)));
       const head = card.querySelector(".pt-head");
       head.setAttribute("aria-expanded", String(!collapsed));
       head.tabIndex = collapsed ? 0 : -1;
@@ -441,18 +538,16 @@ details.pt .inner { padding: 4px 18px 16px; }
     $("new-list").querySelectorAll(".pt-head").forEach(bindHead);
     $("new-list").querySelectorAll("textarea").forEach((t) => {
       const p = newPoints[+t.dataset.new];
-      t.value = p.text;
-      t.addEventListener("input", () => { p.text = t.value; storeNew(); grow(t); update(); t.closest(".pt").querySelector("h2").textContent = titleOf(t.value); });
+      fillBox(t, p.text);
+      t.addEventListener("input", () => { p.text = reply(t); storeNew(); grow(t); update(); t.closest(".pt").querySelector("h2").textContent = titleOf(p.text); });
       // An emptied point that was never sent just goes; one that was sent stays, so the withdrawal is sent.
       t.addEventListener("blur", () => { if (!p.text.trim() && !p.sent && !p.attempted) { newPoints.splice(newPoints.indexOf(p), 1); storeNew(); renderNew(); update(); } });
       t.addEventListener("keydown", onKey);
     });
     growAll($("new-list"));
     if (CODEX) {
-      document.querySelectorAll("#discuss-root button").forEach((b) => b.classList.add("btn"));
-      $("send").classList.add("btn-primary");
+      // The shared design owns these controls; host utility classes override it.
       document.querySelectorAll("#discuss-root textarea").forEach((t) => {
-        t.classList.add("form-control");
         if (t.dataset.n) t.setAttribute("aria-label", "Reply to point " + t.dataset.n);
       });
       $("add").setAttribute("aria-label", "Add a point");
@@ -461,7 +556,7 @@ details.pt .inner { padding: 4px 18px 16px; }
   function storeNew() { save("new", newPoints.length ? JSON.stringify(newPoints) : ""); }
   // A new point's title: its first few words.
   function titleOf(text) {
-    const words = text.trim().split(/\s+/).filter(Boolean);
+    const words = (IMAGE ? text.replace(IMAGE, "image") : text).trim().split(/\s+/).filter(Boolean);
     return !words.length ? "New point" : words.slice(0, 8).join(" ") + (words.length > 8 ? "…" : "");
   }
 
@@ -471,9 +566,9 @@ details.pt .inner { padding: 4px 18px 16px; }
   // Enter folds the new point and stays in "Add a point" for the next one; Tab leaves it open and moves into it.
   function addPoint(fold) {
     const t = $("add");
-    newPoints.push({ text: t.value.trim(), sent: "" }); storeNew();
+    newPoints.push({ text: reply(t).trim(), sent: "" }); storeNew();
     save("c" + (maxN + newPoints.length), fold ? "1" : "");
-    t.value = ""; save("add", ""); grow(t);
+    fillBox(t, ""); save("add", ""); grow(t);
     renderNew(); update();
   }
   function onKey(e) {
@@ -483,12 +578,15 @@ details.pt .inner { padding: 4px 18px 16px; }
     e.preventDefault();
     const t = e.currentTarget;
     if (t.id === "add") {
-      if (!t.value.trim()) return;
+      if (!reply(t).trim()) return;
       addPoint(true); t.focus();
       t.scrollIntoView({ block: "nearest" });
       return;
     }
-    // Enter moves on and folds the point it leaves, which is what sets it apart from Tab.
+    moveOn(t);
+  }
+  // Enter moves on and folds the point it leaves, which is what sets it apart from Tab.
+  function moveOn(t) {
     const all = fields();
     let next = all[all.indexOf(t) + 1];
     const card = t.closest(".pt[id]");
@@ -498,20 +596,22 @@ details.pt .inner { padding: 4px 18px 16px; }
     if (next) next.focus();
   }
 
-  // What this Send carries: new or changed text, and withdrawals of text sent earlier this round.
+  // What this Send carries: new or changed replies and closes, and withdrawals of either sent earlier this round. A point's
+  // reply is its text and whether it closes; a follow-up line replaces the whole of it.
   function changes() {
     const out = [];
     S.items.forEach((it) => {
-      const v = $("r-" + it.n).value.trim(), s = load("sent:" + it.n);
-      if (v && v !== s) out.push("#" + it.n + (s ? " (changed)" : "") + ": " + v);
-      else if (!v && (s || CODEX && load("attempted:" + it.n))) out.push("#" + it.n + " (withdrawn)");
+      const v = reply($("r-" + it.n)).trim(), s = load("sent:" + it.n), c = !!load("close:" + it.n), sc = !!load("sentclose:" + it.n);
+      if (c && (!sc || v !== s)) out.push("#" + it.n + (s || sc ? " (changed, close)" : " (close)") + (v ? ": " + v : ""));
+      else if (!c && v && (v !== s || sc)) out.push("#" + it.n + (s || sc ? " (changed)" : "") + ": " + v);
+      else if (!c && !v && (s || sc || CODEX && load("attempted:" + it.n))) out.push("#" + it.n + " (withdrawn)");
     });
     newPoints.forEach((p, i) => {
       const v = p.text.trim(), label = "New point #" + (maxN + i + 1);
       if (v && v !== p.sent) out.push(label + (p.sent ? " (changed)" : "") + ": " + v);
       else if (!v && (p.sent || CODEX && p.attempted)) out.push(label + " (withdrawn)");
     });
-    const pending = $("add").value.trim();
+    const pending = reply($("add")).trim();
     if (pending) out.push("New point #" + (maxN + newPoints.length + 1) + ": " + pending);
     return out;
   }
@@ -524,27 +624,34 @@ details.pt .inner { padding: 4px 18px 16px; }
   function compose() { const r = changes(); return r.length ? [header()].concat(r.map(clean)).join("\n\n") : ""; }
   function bytes(s) { return enc.encode(s).length; }
 
-  function tags(card, value, sentText) {
-    const d = card.querySelector(".pill.draft"), s = card.querySelector(".pill.sent");
-    if (d) d.hidden = !value || value === sentText;
-    if (s) s.hidden = !sentText || value !== sentText;
-    card.classList.toggle("sent", !!sentText && value === sentText);
+  function tags(card, value, sentText, closing, sentClose) {
+    const d = card.querySelector(".pill.draft"), s = card.querySelector(".pill.sent"), x = card.querySelector(".pill.closes");
+    const sent = (!!sentText || !!sentClose) && value === sentText && !!closing === !!sentClose;
+    if (d) d.hidden = closing || !value || sent;
+    if (s) s.hidden = closing || !sent;
+    if (x) x.textContent = sent ? "Close sent" : "Closes when you send" + (value ? ", with your reply" : "");
+    card.classList.toggle("sent", sent);
   }
   function update() {
     document.querySelectorAll("#points .pt[id]").forEach((card) => {
-      const n = card.id.slice(2), v = $("r-" + n).value.trim();
-      tags(card, v, load("sent:" + n));
-      card.querySelectorAll("button.choice").forEach((b) => b.setAttribute("aria-pressed", String(v === b.dataset.reply.trim())));
+      const n = card.id.slice(2), t = $("r-" + n), c = !!load("close:" + n);
+      tags(card, reply(t).trim(), load("sent:" + n), c, !!load("sentclose:" + n));
+      card.querySelectorAll("button.choice").forEach((b) => b.setAttribute("aria-pressed", String(t.value.trim() === b.dataset.reply.trim())));
+      const close = card.querySelector("button.closebtn");
+      if (close) close.setAttribute("aria-pressed", String(c));
     });
     $("new-list").querySelectorAll("article.pt").forEach((card, i) => tags(card, newPoints[i].text.trim(), newPoints[i].sent));
-    const n = changes().length;
+    const lines = changes(), n = lines.length;
+    const closes = lines.filter((l) => /^#\d+ \((changed, )?close\)/.test(l)).length, replies = n - closes;
     const b = bytes(compose());
     const sent = anySent();
     $("delivery").hidden = !sent;
     $("delivery").textContent = "Replies sent" + (BROWSER ? " — queued for Codex." : " to __ASSISTANT__.") + " Waiting for the next round." + (n ? " You have unsent changes below." : " You can edit a reply to send a follow-up.");
     $("send").textContent = busy ? "Sending…" : sent && !n ? "Sent — waiting for reply" : sent ? "Send changes" : "Send to __ASSISTANT__";
-    $("send").disabled = busy || (sent && !n);
-    $("status").textContent = n ? n + (n === 1 ? " reply" : " replies") + " ready to send." + (anySent() ? " Earlier replies are already sent." : " Blank points stay as they are.")
+    $("send").disabled = busy || uploading > 0 || (sent && !n);
+    // "2 replies and 1 close ready to send."
+    const what = [replies && replies + (replies === 1 ? " reply" : " replies"), closes && closes + (closes === 1 ? " close" : " closes")].filter(Boolean).join(" and ");
+    $("status").textContent = uploading ? "Adding your image…" : n ? what + " ready to send." + (anySent() ? " Earlier replies are already sent." : " Blank points stay as they are.")
       : anySent() ? "Sent. Waiting for __ASSISTANT__; change a reply and Send again to send just the change." : "No replies yet. Blank points stay as they are.";
     // In Claude the replies go through the page's store, so only a view without it is held to a comment's 4 KB.
     $("meter").textContent = b <= LIMIT ? "" : CODEX || BROWSER || HOSTED ? (b / 1024).toFixed(1) + " KB"
@@ -554,9 +661,9 @@ details.pt .inner { padding: 4px 18px 16px; }
   // After a send, the boxes keep their text and remember it as sent, so a reload shows it and a later Send carries only changes.
   function markSent() {
     save("has-sent", "1");
-    S.items.forEach((it) => save("sent:" + it.n, $("r-" + it.n).value.trim()));
-    const pending = $("add").value.trim();
-    if (pending) { newPoints.push({ text: pending, sent: "" }); $("add").value = ""; save("add", ""); grow($("add")); }
+    S.items.forEach((it) => { save("sent:" + it.n, reply($("r-" + it.n)).trim()); save("sentclose:" + it.n, load("close:" + it.n)); });
+    const pending = reply($("add")).trim();
+    if (pending) { newPoints.push({ text: pending, sent: "" }); fillBox($("add"), ""); save("add", ""); grow($("add")); }
     newPoints.forEach((p) => { p.sent = p.text.trim(); });
     newPoints = newPoints.filter((p) => p.sent);
     storeNew(); renderNew(); update();
@@ -583,8 +690,61 @@ details.pt .inner { padding: 4px 18px 16px; }
     }
   }
 
+  // Over the size the session reads back, or a type it can't read: redraw it as a JPEG, smaller until it fits.
+  async function fitImage(file) {
+    if (file.size <= IMAGE_MAX && /^image\/(png|jpeg|gif|webp)$/.test(file.type)) return file;
+    const bitmap = await createImageBitmap(file);
+    for (const edge of [2000, 1400, 1000]) {
+      const scale = Math.min(1, edge / Math.max(bitmap.width, bitmap.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(bitmap.width * scale);
+      canvas.height = Math.round(bitmap.height * scale);
+      const c = canvas.getContext("2d");
+      c.fillStyle = "#fff";  // A JPEG has no transparency.
+      c.fillRect(0, 0, canvas.width, canvas.height);
+      c.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      const blob = await new Promise((done) => canvas.toBlob(done, "image/jpeg", 0.85));
+      if (blob && blob.size <= IMAGE_MAX) return blob;
+    }
+    throw Error("That image is too large to add.");
+  }
+  // Stores an image where this client's assistant can read it and returns its path on this page.
+  async function storeImage(blob) {
+    if (BROWSER) {
+      const response = await fetch("/images", { method: "POST", headers: { "Content-Type": blob.type, "X-Discuss-Client": "browser" }, body: blob });
+      const result = await response.json();
+      if (!response.ok) throw Error(result.error || "Could not save that image.");
+      return result.path;
+    }
+    const assets = await assetsReady;
+    if (!assets) throw Error("This page can't take images.");
+    return "/_blob/" + (await assets.upload(blob)).id;
+  }
+  function addImage(t, path) {
+    if (!t.isConnected) t = $("add");  // Its box went while it uploaded (an emptied new point).
+    t.marks = (t.marks || []).concat("![image](" + path + ")");
+    t.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+  async function takeImages(t, files) {
+    if (!IMAGE) { $("err").textContent = "This page can't take images."; return; }
+    $("err").textContent = "";
+    uploading += files.length;
+    update();
+    for (const file of files) {
+      try { addImage(t, await storeImage(await fitImage(file))); }
+      catch (e) {
+        const code = e && typeof e.code === "string" ? e.code : "";
+        $("err").textContent = code === "consent_required" ? "The page needs your OK to save images. Paste it again and allow it."
+          : code ? "Couldn't add that image (" + code + ")." : e && e.message || "Couldn't add that image.";
+      }
+      uploading--;
+      update();
+    }
+  }
+  function imagesIn(data) { return Array.from(data && data.files || []).filter((f) => f.type.startsWith("image/")); }
+
   async function send() {
-    if (busy) return;
+    if (busy || uploading) return;
     let text = compose();
     if (!text) { $("err").textContent = anySent() ? "Nothing new to send. Change a reply first." : "Write a reply on at least one point first"; return; }
     $("err").textContent = "";
@@ -624,7 +784,7 @@ details.pt .inner { padding: 4px 18px 16px; }
       try {
         // Remember only the attempt, so clearing text later can explicitly withdraw it.
         // This never suppresses a retry or labels a draft as delivered.
-        S.items.forEach((it) => { if ($("r-" + it.n).value.trim()) put("attempted:" + it.n, "1"); });
+        S.items.forEach((it) => { if ($("r-" + it.n).value.trim() || load("close:" + it.n)) put("attempted:" + it.n, "1"); });
         const pending = $("add").value.trim();
         if (pending) { newPoints.push({ text: pending, sent: "" }); $("add").value = ""; save("add", ""); }
         newPoints.forEach((p) => { if (p.text.trim()) p.attempted = true; });
@@ -632,7 +792,7 @@ details.pt .inner { padding: 4px 18px 16px; }
         // The bridge can resolve when it opens confirmation, before the user sends.
         // Keep all drafts resendable; never mark them delivered from this promise.
         await window.openai.sendFollowUpMessage({ prompt: text, title: "Send discussion replies" });
-        $("status").textContent = "Review the send in Codex. Replies stay here until the next round appears in chat.";
+        $("status").textContent = "Confirm the message if prompted. __ASSISTANT__ will acknowledge your replies in the next round.";
       } catch (e) {
         $("err").textContent = "Send was cancelled or unavailable. Try again, or copy your replies into chat.";
       } finally {
@@ -703,6 +863,15 @@ details.pt .inner { padding: 4px 18px 16px; }
       const b = card && card.querySelectorAll("button.choice")[+e.code.slice(5) - 1];
       if (b) { e.preventDefault(); hideTip(); fill($("r-" + b.dataset.n), b.dataset.reply); }
     }
+    // Alt+0 closes the focused point; in its box it then moves on, as Enter does. On a closing point it reopens it.
+    if (e.altKey && !e.ctrlKey && !e.metaKey && e.code === "Digit0") {
+      const at = document.activeElement, card = at && at.closest(".pt[id]");
+      if (card && card.querySelector("button.closebtn")) {
+        e.preventDefault(); hideTip();
+        if (at.matches("textarea.field") && !card.classList.contains("closing")) { setClosing(card, true); moveOn(at); }
+        else closePoint(card, true);
+      }
+    }
     // Ctrl+Alt+1 shows or hides the closed points; Ctrl+Alt+2 goes to "Add a point". Both sit under one hand, and neither is
     // a browser shortcut (Ctrl+1 and Ctrl+2 switch tabs).
     if (e.ctrlKey && e.altKey && !e.metaKey && !e.shiftKey && (e.code === "Digit1" || e.code === "Digit2")) {
@@ -716,7 +885,7 @@ details.pt .inner { padding: 4px 18px 16px; }
       const at = document.activeElement, all = stops();
       if (!e.shiftKey && at === $("add")) {
         e.preventDefault();
-        if (!$("add").value.trim()) { if (all[0]) all[0].focus(); }
+        if (!reply($("add")).trim()) { if (all[0]) all[0].focus(); }
         else { addPoint(false); $("new-list").querySelector("article.pt:last-child textarea").focus(); }
       } else if (e.shiftKey && at === all[0]) { e.preventDefault(); $("add").focus(); }
     }
@@ -735,9 +904,27 @@ details.pt .inner { padding: 4px 18px 16px; }
   });
   // An error is about the last Send; editing a reply makes it stale. (update() can't clear it: it runs after a failed send.)
   document.addEventListener("input", (e) => { if (e.target.matches("textarea.field")) $("err").textContent = ""; });
+  // Text wins: copying from a spreadsheet or a document puts a picture of it on the clipboard beside the text.
+  document.addEventListener("paste", (e) => {
+    const t = e.target.closest && e.target.closest("textarea.field"), files = imagesIn(e.clipboardData);
+    if (!t || !files.length || e.clipboardData.getData("text/plain")) return;
+    e.preventDefault();
+    takeImages(t, files);
+  });
+  // A file dropped anywhere else would have the browser open it in place of the page, so the page takes every file drag.
+  document.addEventListener("dragover", (e) => { if (e.dataTransfer && e.dataTransfer.types.includes("Files")) e.preventDefault(); });
+  document.addEventListener("drop", (e) => {
+    if (!e.dataTransfer || !e.dataTransfer.types.includes("Files")) return;
+    e.preventDefault();
+    const t = e.target.closest && e.target.closest("textarea.field"), files = imagesIn(e.dataTransfer);
+    if (!files.length) return;
+    if (t) takeImages(t, files);
+    else $("err").textContent = "Drop the image on a reply box.";
+  });
   $("send").addEventListener("click", send);
   $("copy").addEventListener("click", copy);
   if (BROWSER) {
+    $("keys-images").hidden = location.protocol !== "http:";
     document.querySelector(".foot").textContent = "Send queues your replies into this Codex chat. This page refreshes when Codex writes the next round. Drafts stay in this browser until you send them.";
     // Only the local server provides /version; exported HTML still offers Copy replies.
     if (location.protocol === "http:" && location.hostname === "127.0.0.1") {
@@ -757,6 +944,19 @@ details.pt .inner { padding: 4px 18px 16px; }
   } else if (HOSTED) {
     document.querySelector(".foot").textContent = "Send passes your replies to __ASSISTANT__. This page refreshes when the next round is ready. Drafts stay in this browser until you send them.";
     window.addEventListener("message", onBridge);
+    assetsReady = Promise.resolve({ upload: (blob) => bridge("upload", { blob }, 60000) });
+    $("keys-images").hidden = !framed;
+    // Every path a mark names gets its picture once from the app, whichever redraw put the <img> on the page.
+    const pictures = new Map();
+    const fillImages = () => document.querySelectorAll("img[data-path]").forEach((img) => {
+      const path = img.dataset.path;
+      img.removeAttribute("data-path");
+      if (!pictures.has(path)) pictures.set(path, bridge("image", { path }, 30000));
+      pictures.get(path).then((r) => { img.src = r.url; })
+        .catch(() => { pictures.delete(path); img.alt = "Couldn't load this image."; });
+    });
+    new MutationObserver(fillImages).observe(document.body, { childList: true, subtree: true });
+    fillImages();
     if (framed) {
       let polling = false;
       setInterval(async () => {
@@ -773,7 +973,7 @@ details.pt .inner { padding: 4px 18px 16px; }
       }, 3000);
     }
   } else if (CODEX) {
-    document.querySelector(".foot").textContent = "Send opens a follow-up in this Codex chat. Confirm it there; the next round appears as a new page in chat. This older round does not refresh.";
+    document.querySelector(".foot").textContent = "Send passes your replies to this __ASSISTANT__ conversation. Confirm if prompted. The next round appears here in the chat; earlier rounds remain as snapshots.";
     window.addEventListener("openai:set_globals", (event) => {
       if (restoreWidget(event.detail?.globals?.widgetState)) redraw();
     });
@@ -784,8 +984,11 @@ details.pt .inner { padding: 4px 18px 16px; }
       try { canSend = await c.canSendToClaude(); } catch (e) { canSend = "off"; }
     }).catch(() => { canSend = "off"; });
     window.claude.use("db").then((d) => { db = d; }).catch(() => {});
+    assetsReady = window.claude.use("assets").catch(() => null);
+    assetsReady.then((a) => { $("keys-images").hidden = !a; });
   } else {
     canSend = "off";
   }
 })();
 </script>
+
