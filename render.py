@@ -91,6 +91,80 @@ def problems(state: dict) -> list[str]:
     return out
 
 
+def _inline_css(css: str) -> str:
+    """Isolate page.html's shared design from the inline host's selectors and tokens.
+
+    The template uses flat rules and @media groups. Reject new at-rules until their
+    scoping is handled explicitly; never silently publish global inline styles.
+    """
+    root = "#discuss-root"
+    css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+    css = re.sub(r"--(?!discuss-)([a-z][a-z0-9-]*)", r"--discuss-\1", css)
+
+    def selectors(text: str) -> list[str]:
+        parts, start, depth, quote = [], 0, 0, None
+        for i, char in enumerate(text):
+            if quote:
+                if char == quote and (i == 0 or text[i - 1] != "\\"):
+                    quote = None
+            elif char in ("\"", "'"):
+                quote = char
+            elif char in "([":
+                depth += 1
+            elif char in ")]":
+                depth -= 1
+            elif char == "," and depth == 0:
+                parts.append(text[start:i].strip())
+                start = i + 1
+        parts.append(text[start:].strip())
+        return parts
+
+    def scope(selector: str) -> str:
+        if selector in (":root", "body"):
+            return root
+        if selector.startswith(":root"):
+            return selector + " " + root
+        if selector.startswith(root):
+            return selector
+        if selector.startswith(".wrap"):
+            return root + selector
+        return root + " " + selector
+
+    def rules(text: str) -> str:
+        out, i = [], 0
+        while text[i:].strip():
+            start = text.find("{", i)
+            if start < 0:
+                raise ValueError("inline CSS: expected a rule")
+            prelude = text[i:start].strip()
+            depth, end, quote = 1, start + 1, None
+            while depth and end < len(text):
+                char = text[end]
+                if quote:
+                    if char == quote and text[end - 1] != "\\":
+                        quote = None
+                elif char in ("\"", "'"):
+                    quote = char
+                elif char == "{":
+                    depth += 1
+                elif char == "}":
+                    depth -= 1
+                end += 1
+            if depth:
+                raise ValueError("inline CSS: unclosed rule")
+            body = text[start + 1:end - 1]
+            if prelude.startswith("@media "):
+                out.append(prelude + " {\n" + rules(body) + "\n}")
+            elif prelude.startswith("@") or "{" in body:
+                raise ValueError("inline CSS: unsupported rule " + prelude)
+            else:
+                out.append(",\n".join(scope(s) for s in selectors(prelude)) + " {" + body + "}")
+            i = end
+        return "\n".join(out)
+
+    return rules(css)
+
+
 def render_state(state: dict, client: str = "claude", assistant: str | None = None) -> str:
     if client not in ASSISTANT:
         raise ValueError(f"client: one of {sorted(ASSISTANT)}")
@@ -103,10 +177,13 @@ def render_state(state: dict, client: str = "claude", assistant: str | None = No
         raise ValueError("state not rendered:\n  " + "\n  ".join(bad))
     template = Path(__file__).with_name("page.html").read_text(encoding="utf-8")
     if client == "codex":
-        # Keep the shared UI/round logic; swap only the host's presentation and copy.
-        style_end = template.index("</style>")
-        css = Path(__file__).with_name("codex.css").read_text(encoding="utf-8")
-        template = "<title>__TITLE__</title>\n<style>\n" + css + "\n</style>" + template[style_end + 8:]
+        # Keep the original design, font links and shared interaction code. The host
+        # also defines --muted and --accent, but as fills rather than text colors.
+        style_start, style_end = template.index("<style>"), template.index("</style>")
+        css = _inline_css(template[style_start + 7:style_end])
+        css += "\n" + Path(__file__).with_name("codex.css").read_text(encoding="utf-8")
+        template = template[:style_start] + "<style>\n" + css + "\n" + template[style_end:]
+        template = re.sub(r'<meta name="claude:viewport-fit-sides"[^>]*>\n', "", template)
     template = template.replace("__ASSISTANT__", assistant or ASSISTANT[client])
     head, sep, tail = template.partition("__STATE__")
     if not sep or head.count("__TITLE__") != 1 or "__STATE__" in tail:
@@ -141,3 +218,4 @@ def main(argv: list[str]) -> int:
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv))
+

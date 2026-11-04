@@ -47,6 +47,37 @@ class BrowserTransportTests(unittest.TestCase):
         self.assertEqual(self.request("GET", "/test.json")[0], 404)
         self.assertEqual(self.request("GET", "/", Host="evil.example")[0], 403)
 
+    def upload(self, body=b"\x89PNG fake", kind="image/png", origin=None):
+        return self.request("POST", "/images", body, **{"Origin": origin or self.server.origin,
+                                                       "Content-Type": kind, "X-Discuss-Client": "browser"})
+
+    def test_an_image_is_stored_beside_the_state_and_served_back(self):
+        status, body = self.upload()
+        self.assertEqual(status, 200)
+        path = json.loads(body)["path"]
+        self.assertRegex(path, r"^/images/[0-9a-f-]{36}\.png$")
+        self.assertEqual((self.server.images / path.rsplit("/", 1)[1]).read_bytes(), b"\x89PNG fake")
+        self.assertEqual(self.server.images.name, "test-images")
+        self.assertEqual(self.request("GET", path), (200, b"\x89PNG fake"))
+
+    def test_images_only_from_the_page_and_only_images(self):
+        self.assertEqual(self.upload(origin="https://evil.example")[0], 403)
+        self.assertEqual(self.upload(kind="text/html")[0], 415)
+        self.assertEqual(self.upload(body=b"x" * (1024 * 1024 + 1))[0], 413)
+        self.assertEqual(list(self.server.images.iterdir()), [])
+
+    def test_a_reply_over_the_limit_still_gets_its_answer(self):
+        status, body = self.request("POST", "/replies", b"x" * (1024 * 1024), **{
+            "Origin": self.server.origin, "Content-Type": "application/json", "X-Discuss-Client": "browser"})
+        self.assertEqual(status, 413)
+        self.assertIn("256 KiB", json.loads(body)["error"])
+
+    def test_only_stored_images_are_readable(self):
+        missing = "00000000-0000-0000-0000-000000000000.png"
+        self.assertEqual(self.request("GET", "/images/" + missing)[0], 404)
+        self.assertEqual(self.request("GET", "/images/../test.json")[0], 404)
+        self.assertEqual(self.request("GET", "/images/..%2Ftest.json")[0], 404)
+
     @patch("serve.subprocess.run")
     def test_cross_origin_cannot_queue(self, run):
         status, _ = self.request("POST", "/replies", json.dumps(self.body),
