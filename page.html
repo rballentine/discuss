@@ -60,8 +60,13 @@ button:disabled { cursor: default; opacity: .65; }
 .thread { display: grid; gap: 12px; margin: 12px 0 0 calc(1.6em + 10px); }
 .who { font-size: 12px; color: var(--faint); margin-bottom: 2px; }
 .msg { min-width: 0; overflow-wrap: anywhere; }
-.msg p, .msg ul, .msg ol { margin: 0 0 .5em; } .msg > :last-child { margin-bottom: 0; }
+.msg p, .msg ul, .msg ol, .msg .tbl { margin: 0 0 .5em; } .msg > :last-child { margin-bottom: 0; }
 .msg ul, .msg ol { padding-left: 1.3em; }
+/* A wide table scrolls on its own rather than widening the card. */
+.msg .tbl { overflow-x: auto; }
+.msg table { border-collapse: collapse; font: 14px/1.45 var(--sans); font-variant-numeric: tabular-nums; overflow-wrap: normal; }
+.msg th, .msg td { padding: 4px 12px 4px 0; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+.msg th { font-weight: 600; border-bottom-color: var(--line-strong); }
 .claude .msg { font: 16px/1.6 var(--serif); }
 .you .msg { border-left: 2px solid var(--line-strong); padding-left: 10px; color: var(--muted); }
 .msg code { font: 13px var(--mono); background: var(--park-bg); padding: 1px 4px; border-radius: 4px; }
@@ -283,13 +288,33 @@ details.pt .inner { padding: 4px 18px 16px; }
       .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
       .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
   }
+  // A pipe table: a header row, a |---|:--:| line, then rows until a line without a pipe. It may follow a
+  // paragraph's lines directly, as in "What changes:" on the line above it. "\|" is a pipe inside a cell.
+  const TABLE_SEP = /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/;
+  function cells(l) {
+    return l.replace(/\\\|/g, "\u0000").trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim().replace(/\u0000/g, "|"));
+  }
+  function table(lines) {
+    const align = cells(lines[1]).map((c) => /^:-+:$/.test(c) ? "center" : /-:$/.test(c) ? "right" : "");
+    const row = (l, tag) => "<tr>" + align.map((a, i) => "<" + tag + (a ? ' style="text-align:' + a + '"' : "") + ">" +
+      inline(cells(l)[i] || "") + "</" + tag + ">").join("") + "</tr>";
+    return '<div class="tbl"><table><thead>' + row(lines[0], "th") + "</thead>" +
+      (lines.length > 2 ? "<tbody>" + lines.slice(2).map((l) => row(l, "td")).join("") + "</tbody>" : "") + "</table></div>";
+  }
+  function block(lines) {
+    const t = lines.findIndex((l, i) => l.includes("|") && i + 1 < lines.length && lines[i + 1].includes("|") && TABLE_SEP.test(lines[i + 1]) &&
+      cells(l).length === cells(lines[i + 1]).length);
+    if (t >= 0) {
+      let end = t + 2;
+      while (end < lines.length && lines[end].includes("|")) end++;
+      return (t ? block(lines.slice(0, t)) : "") + table(lines.slice(t, end)) + (end < lines.length ? block(lines.slice(end)) : "");
+    }
+    if (lines.every((l) => /^\s*[-*] /.test(l))) return "<ul>" + lines.map((l) => "<li>" + inline(l.replace(/^\s*[-*] /, "")) + "</li>").join("") + "</ul>";
+    if (lines.every((l) => /^\s*\d+[.)] /.test(l))) return "<ol>" + lines.map((l) => "<li>" + inline(l.replace(/^\s*\d+[.)] /, "")) + "</li>").join("") + "</ol>";
+    return "<p>" + lines.map(inline).join("<br>") + "</p>";
+  }
   function md(text) {
-    return String(text).trim().split(/\n{2,}/).map((block) => {
-      const lines = block.split("\n");
-      if (lines.every((l) => /^\s*[-*] /.test(l))) return "<ul>" + lines.map((l) => "<li>" + inline(l.replace(/^\s*[-*] /, "")) + "</li>").join("") + "</ul>";
-      if (lines.every((l) => /^\s*\d+[.)] /.test(l))) return "<ol>" + lines.map((l) => "<li>" + inline(l.replace(/^\s*\d+[.)] /, "")) + "</li>").join("") + "</ol>";
-      return "<p>" + lines.map(inline).join("<br>") + "</p>";
-    }).join("");
+    return String(text).trim().split(/\n{2,}/).map((b) => block(b.split("\n"))).join("");
   }
 
   // Browser storage. Per round: a box's text (its number), what was sent from it ("sent:<n>"), a close ("close:<n>", and

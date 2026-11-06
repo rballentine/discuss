@@ -301,7 +301,8 @@ Stay in chat when:
 
    `status` is `open`, `done`, `parked` or `dropped`; a closed point also needs
    `outcome`, the one line its folded card shows. Text takes light markdown:
-   paragraphs, `- ` and `1. ` lists, `` `code` ``, `**bold**`, `[text](https://...)`,
+   paragraphs, `- ` and `1. ` lists, `| a | b |` tables (header row, then a
+   `|---|---:|` line; `-:` right-aligns a column), `` `code` ``, `**bold**`, `[text](https://...)`,
    and on a page that stores images, `![alt](/_blob/<id>)` (`/images/<name>` in Codex).
 
    **Choices**: every answer on an open point carries two or three `choices`
