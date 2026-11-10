@@ -9,6 +9,10 @@ press **Send** once. The assistant answers every point and republishes, and the 
 and fresh boxes, round after round, until every point is settled. On a Claude Artifact page, the Codex
 browser page or a page in a project's own app you can also paste a screenshot into any box, or drop an image on it.
 
+A 70-second demo, with sound:
+
+https://github.com/user-attachments/assets/26707fce-7ed8-4e2f-9f77-5fc18348a17f
+
 ## Install
 
 The skill is the folder itself. Clone it where your client looks for skills:
