@@ -9,9 +9,9 @@ press **Send** once. The assistant answers every point and republishes, and the 
 and fresh boxes, round after round, until every point is settled. On a Claude Artifact page, the Codex
 browser page or a page in a project's own app you can also paste a screenshot into any box, or drop an image on it.
 
-A 70-second demo, with sound:
+A one-minute demo, with sound:
 
-https://github.com/user-attachments/assets/26707fce-7ed8-4e2f-9f77-5fc18348a17f
+https://github.com/user-attachments/assets/d0226fa2-4af6-4462-9661-cb2f6545d44f
 
 ## Install
 
@@ -22,6 +22,8 @@ The skill is the folder itself. Clone it where your client looks for skills:
 | Claude Code (all projects) | `git clone https://github.com/rballentine/discuss ~/.claude/skills/discuss` |
 | Codex (all projects) | `git clone https://github.com/rballentine/discuss ~/.agents/skills/discuss` |
 | One project only | clone into the project's `.claude/skills/discuss` or `.agents/skills/discuss` |
+| Claude Code on the web (claude.ai/code) | commit the folder to the project as `.claude/skills/discuss`; a cloud session reads it from the repository |
+| ChatGPT (web or desktop app) | zip the folder and add it under Plugins, Skills, Create, "Upload from your computer" |
 
 Update with `git -C <that folder> pull`. The scripts need Python 3 and nothing else.
 
@@ -55,8 +57,13 @@ their text. Hovering a tag shows what it means.
   desktop app. **Send** saves your replies in the artifact's data store and wakes the session through an
   artifact comment. Where those aren't available to your account, the page's **Copy replies** button gives
   you the text to paste into chat instead.
+- **Claude Code on the web (claude.ai/code):** the same Artifact page. A cloud session publishes it through
+  the artifacts connector, and Send wakes that session the same way.
 - **Codex desktop:** a local page served by `serve.py` on `127.0.0.1`; Send queues your replies into the
   chat with `codex queue`.
+- **ChatGPT (web or desktop app):** the page appears inside a Work conversation. Send asks you to confirm a
+  follow-up message, and each round's answers arrive as a new page in the next reply. Start the conversation
+  on the web; you can carry it on in the desktop app. This page can't take pasted images.
 - **Your own web app:** the `hosted` client runs the page in a sandboxed iframe that talks to your app over
   `postMessage`. See "Hosted" in [SKILL.md](SKILL.md).
 
