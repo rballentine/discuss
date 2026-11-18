@@ -31,6 +31,23 @@ The assistant opens a page on its own when a reply would carry six or more numbe
 answer. For a shorter list, or one it left in chat, type `/discuss` (Claude Code) or `$discuss` (Codex),
 optionally with a title or which list you mean. Asking for "a discussion page" works too.
 
+## Keys
+
+- **Enter** moves to the next box and collapses the point it leaves; **Shift+Enter** is a new line.
+- **Ctrl+Enter** sends.
+- **Alt+1** to **Alt+3** put that choice in the focused point's box.
+- **Alt+0** closes the focused point (in its box, then moves on as Enter does) or reopens a closing one.
+- **Ctrl+Space** collapses or expands the card in focus.
+- **Ctrl+Alt+1** shows or hides closed points; **Ctrl+Alt+2** goes to "Add a point".
+- **Enter in "Add a point"** turns the text into a new numbered point, folded and titled with its first
+  words, and stays there for the next one; new points collapse like the others.
+- **Tab** goes from box to box without collapsing anything; a collapsed card's title is a Tab stop so it can
+  be opened. Tab in "Add a point" turns its text into a new point and moves to it, or, with the box empty,
+  wraps to the first point (Shift+Tab there wraps back), so Tab never reaches the Send bar's buttons.
+
+A box reached by keyboard scrolls to just above the Send bar, with its point's text above it. Boxes grow with
+their text. Hovering a tag shows what it means.
+
 ## What each client needs
 
 - **Claude Code:** the page is a [Claude Artifact](https://code.claude.com/docs/en/artifacts), so you need

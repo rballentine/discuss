@@ -95,20 +95,20 @@ textarea.field, .pt-head, summary { scroll-margin-top: 16px; scroll-margin-botto
 /* Close ends the row on every open point. A closing card folds, dashed, its number a green tick and its tag and Undo after
    its title (below it on a narrow screen), until the next Send carries the close. */
 .closebtn { margin-left: auto; color: var(--muted); border-color: var(--line); }
-.closebtn::before, .done::before { content: "\2713"; content: "\2713" / ""; }
+.closebtn::before, .tick::before { content: "\2713"; content: "\2713" / ""; }
 .closebtn::before { margin-right: 5px; }
 .closebtn:hover, .closebtn[aria-pressed="true"] { color: var(--ok); border-color: var(--ok); background: var(--ok-bg); }
 .pt-top { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 8px; row-gap: 6px; }
 .pt-top .pt-head { flex: 1 1 14rem; min-width: 0; }
-.done, .closing-row { display: none; }
-.done { flex: none; align-self: center; width: 1.6em; height: 1.6em; border-radius: 50%; background: var(--ok); color: var(--surface);
+.tick, .closing-row { display: none; }
+.tick { flex: none; align-self: center; width: 1.6em; height: 1.6em; border-radius: 50%; background: var(--ok); color: var(--surface);
   font: 600 13px/1.6 var(--sans); text-align: center; }
 .closing-row { margin: -3px 0 -3px auto; align-items: baseline; gap: 2px; }
 .undo { border-color: transparent; color: var(--accent); padding: 3px 8px; }
 .pt.closing { border-style: dashed; border-color: var(--line-strong); background: transparent; }
 .pt.closing.sent { border-color: var(--ok); }
 .pt.closing .no, .pt.closing .pill.new, .pt.closing .pt-head::after { display: none; }
-.pt.closing .done { display: inline-block; }
+.pt.closing .tick { display: inline-block; }
 .pt.closing .closing-row { display: inline-flex; }
 .pt.closing h2 { color: var(--muted); font-weight: 500; }
 .pill.closes { background: var(--ok-bg); color: var(--ok); }
@@ -417,6 +417,12 @@ details.pt .inner { padding: 4px 18px 16px; }
     const last = (it.thread || []).filter((e) => e.who !== "you").pop();
     return S.round > 1 && last && last.round === S.round;
   }
+  // A point closed this round when its last entry is this round's: an answer carries the page's round, and a reply or a
+  // Close carries the round before, the one it was sent from. A close needs no answer, so the user's entry can be the last.
+  function closedNow(it) {
+    const last = it.thread[it.thread.length - 1];
+    return S.round > 1 && last.round === (last.who === "you" ? S.round - 1 : S.round);
+  }
   function pill(cls, text, hidden) { return '<span class="pill ' + cls + '" title="' + esc(TIP[cls]) + '"' + (hidden ? " hidden" : "") + ">" + text + "</span>"; }
   // A title is a Tab stop only while its card is collapsed, so Tab can reach it to open the card. Undo sits outside the title,
   // which is itself a button.
@@ -424,7 +430,7 @@ details.pt .inner { padding: 4px 18px 16px; }
     const c = !!load("c" + it.n);
     return '<article class="pt' + (c ? " collapsed" : "") + (load("close:" + it.n) ? " closing" : "") + '" id="p-' + it.n + '"><div class="pt-top">' +
       '<div class="pt-head" role="button" tabindex="' + (c ? 0 : -1) + '" aria-expanded="' + !c + '"><span class="no">' + it.n + "</span>" +
-      '<span class="done" role="img" aria-label="Point ' + it.n + ', closing"></span><h2>' + inline(it.title) + "</h2>" +
+      '<span class="tick" role="img" aria-label="Point ' + it.n + ', closing"></span><h2>' + inline(it.title) + "</h2>" +
       (isNew(it) ? pill("new", "New answer") : "") + pill("draft", "Draft", true) + pill("sent", "Sent", true) + "</div>" +
       '<span class="closing-row">' + pill("closes", "Closes when you send") + '<button type="button" class="undo" tabindex="-1" data-n="' + it.n + '">Undo</button></span></div>' +
       '<div class="body">' + threadHtml(it) + replyHtml(it) + "</div></article>";
@@ -473,7 +479,7 @@ details.pt .inner { padding: 4px 18px 16px; }
     const byN = (a, b) => a.n - b.n;
     const open = S.items.filter((it) => it.status === "open").sort(byN);
     const closed = S.items.filter((it) => it.status !== "open").sort(byN);
-    const fresh = closed.filter(isNew).length;
+    const fresh = closed.filter(closedNow).length;
     const tally = {};
     closed.forEach((it) => { tally[it.status] = (tally[it.status] || 0) + 1; });
     $("counts").innerHTML = pill("open", open.length + " open") +
