@@ -37,20 +37,7 @@ what fits under no point: a problem hit along the way, a blocker, or a step the 
 must take outside the page. Never restate a point's answer, list what each point
 says, or summarize the work a point already describes.
 
-Keys: Enter moves to the next box and collapses the point it leaves,
-Shift+Enter is a new line, Ctrl+Space collapses or expands the card in focus,
-Ctrl+Enter sends, Alt+1 to Alt+3 put that choice in the focused point's box,
-Alt+0 closes the focused point (in its box, then moves on as Enter does) or
-reopens a closing one, Ctrl+Alt+1 shows or hides closed points and Ctrl+Alt+2 goes to "Add a point". Enter in
-"Add a point" turns the text into a new numbered point, folded and titled with
-its first words, and stays there for the next one; new points collapse like
-the others. Tab goes from box to box without collapsing anything; a collapsed
-card's title is a Tab stop so it can be opened. Tab in "Add a point" turns its
-text into a new point and moves to it, or, with the box empty, wraps to the
-first point (Shift+Tab there wraps back), so Tab never reaches the Send bar's
-buttons. A box reached by keyboard scrolls to just above the Send bar, with its
-point's text above it. Boxes grow with their text. Hovering
-a tag shows what it means.
+The page's keyboard shortcuts are listed in [README.md](README.md#keys).
 
 **Images.** On a Claude Artifact page, the Codex browser page and a hosted page,
 Ctrl+V pastes an image into any box and dropping one on a box adds it. The box shows
@@ -265,7 +252,7 @@ Stay in chat when:
    - `title`: the point in at most eight words.
    - Claude's round-1 text: your full current position, readable on its own,
      because the page is where the user reads it. Lead with the answer or
-     recommendation; about 120 words at most.
+     recommendation, and keep it as short as the point allows.
    - **When the list is the user's own** (they wrote or pasted it, rather than
      you enumerating it), each thread opens with their point, verbatim, before
      your answer: `{"who": "you", "round": 1, "text": ...}`, holding every word

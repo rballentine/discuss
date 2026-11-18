@@ -4,6 +4,8 @@ python -m unittest discover -p "test_*.py"   (from this folder)
 """
 import json
 import re
+import shutil
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -91,6 +93,51 @@ class RenderTests(unittest.TestCase):
             with self.subTest(problem=problem):
                 self.assertEqual(problems(state), [problem])
         self.assertEqual(problems([]), ["state: a JSON object"])
+
+
+class HeaderCountTests(unittest.TestCase):
+    """The header's tally pills and the count beside "Show closed points"."""
+
+    def test_a_status_name_styles_only_its_pill(self):
+        # The tally pill for done points has the classes "pill done". A rule for some other element that
+        # selected ".done" alone caught the pill too, and its display: none hid the count.
+        css = re.sub(r"/\*.*?\*/", "", re.search(r"<style>(.*?)</style>", render_state(STATE), re.S).group(1), flags=re.S)
+        preludes = re.findall(r"(?:^|(?<=[{}]))\s*([^{}]+)\{", css)
+        for status in ("open", "done", "parked", "dropped"):
+            with self.subTest(status=status):
+                self.assertIn(".pill." + status, " ".join(preludes))
+                for prelude in preludes:
+                    self.assertNotRegex(prelude, r"(?<!\.pill)\." + status + r"(?![\w-])")
+
+    @unittest.skipUnless(shutil.which("node"), "needs node to run the page's own function")
+    def test_closed_this_round_counts_a_close_that_got_no_answer(self):
+        def point(n, *thread):
+            return {"n": n, "title": "Point", "status": "done", "outcome": "Settled",
+                    "thread": [{"who": who, "round": r, "text": text} for who, r, text in thread]}
+        asked = ("claude", 1, "A position")
+        items = [
+            point(1, asked, ("you", 2, "Agree."), ("claude", 3, "Done as agreed.")),  # answered and closed this round
+            point(2, asked, ("you", 2, "Closed.")),                # the Close button: the user's entry is the last one
+            point(3, asked, ("you", 2, "Fine as it is.")),         # Close with a reply in the box
+            point(4, asked, ("you", 2, "Agree."), ("codex", 3, "Done.")),             # whoever answers the page
+            point(5, asked, ("you", 1, "Agree."), ("claude", 2, "Done as agreed.")),  # closed a round ago
+            point(6, asked, ("you", 1, "Closed.")),                # the Close button, a round ago
+            {**point(7, asked, ("you", 2, "Say more."), ("claude", 3, "More.")), "status": "open"},
+        ]
+        self.assertEqual(closed_this_round({**STATE, "round": 3, "items": items}), [1, 2, 3, 4])
+        # A first page has no round before it for a point to have closed in.
+        self.assertEqual(closed_this_round({**STATE, "round": 1, "items": [point(1, asked)]}), [])
+
+
+def closed_this_round(state: dict) -> list[int]:
+    """The closed points the page counts as closed this round, by running the page's own closedNow."""
+    page = render_state(state)
+    found = re.search(r"\n  function closedNow\(it\) \{.*?\n  \}", page, re.S)
+    if not found:
+        raise AssertionError("page.html has no closedNow(it), the rule behind 'N closed this round'")
+    script = ("const S = " + json.dumps(embedded(page)) + ";" + found.group(0) +
+              '\nconsole.log(JSON.stringify(S.items.filter((it) => it.status !== "open").filter(closedNow).map((it) => it.n)));')
+    return json.loads(subprocess.run(["node", "-"], input=script, capture_output=True, text=True, check=True).stdout)
 
 
 class InlineStyleTests(unittest.TestCase):
