@@ -21,11 +21,10 @@ The skill is the folder itself. Clone it where your client looks for skills:
 | --- | --- |
 | Claude Code (all projects) | `git clone https://github.com/rballentine/discuss ~/.claude/skills/discuss` |
 | Codex (all projects) | `git clone https://github.com/rballentine/discuss ~/.agents/skills/discuss` |
-| One project only | clone into the project's `.claude/skills/discuss` or `.agents/skills/discuss` |
-| Claude Code on the web (claude.ai/code) | commit the folder to the project as `.claude/skills/discuss`; a cloud session reads it from the repository |
+| One project only, or Claude Code on the web (claude.ai/code) | copy the files, without the `.git` folder, into the project's `.claude/skills/discuss` (Claude Code) or `.agents/skills/discuss` (Codex) and commit them; a cloud session reads skills from the repository |
 | ChatGPT (web or desktop app) | zip the folder and add it under Plugins, Skills, Create, "Upload from your computer" |
 
-Update with `git -C <that folder> pull`. The scripts need Python 3 and nothing else.
+Update a clone with `git -C <that folder> pull`, or copy the files again. The scripts need Python 3 and nothing else.
 
 ## Use
 
