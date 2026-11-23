@@ -77,6 +77,8 @@ def problems(state: dict) -> list[str]:
             out.append(f"{where}.status: one of {sorted(STATUSES)}")
         elif it["status"] != "open" and not _text(it.get("outcome")).strip():
             out.append(f"{where}.outcome: required once a point is settled (it is the folded line)")
+        if it.get("summary") is not None and (not isinstance(it["summary"], str) or not it["summary"].strip()):
+            out.append(f"{where}.summary: text, if given (it stands in for the earlier rounds)")
         thread = it.get("thread")
         if not isinstance(thread, list) or not thread:
             out.append(f"{where}.thread: a non-empty list")

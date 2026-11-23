@@ -78,7 +78,9 @@ class RenderTests(unittest.TestCase):
                 {**STATE, "items": [{**point, "status": "done", "outcome": None}]},
             "items[0].thread[0]: needs who (claude|codex|you), round (int) and text":
                 {**STATE, "items": [{**point, "thread": [{"who": "you", "round": 1, "text": None}]}]},
+            "items[0].summary: text, if given (it stands in for the earlier rounds)": {**STATE, "items": [{**point, "summary": " "}]},
         }
+        self.assertEqual(problems({**STATE, "items": [{**point, "summary": "Where it stands."}]}), [])
         answer = point["thread"][1]
         choices = "items[0].thread[1].choices: at most 3, each a label (at most 24 characters) and a reply (at most 300)"
         for name, bad in {"four": answer["choices"] * 2, "not a list": {"label": "A", "reply": "B"},
@@ -127,6 +129,53 @@ class HeaderCountTests(unittest.TestCase):
         self.assertEqual(closed_this_round({**STATE, "round": 3, "items": items}), [1, 2, 3, 4])
         # A first page has no round before it for a point to have closed in.
         self.assertEqual(closed_this_round({**STATE, "round": 1, "items": [point(1, asked)]}), [])
+
+
+class LongPointTests(unittest.TestCase):
+    """A long point folds its earlier rounds under its summary; wide pages open one point at a time."""
+
+    @unittest.skipUnless(shutil.which("node"), "needs node to run the page's own function")
+    def test_the_latest_exchange_is_the_newest_answer_and_the_reply_it_answers(self):
+        def thread(*who):
+            return [{"who": w, "round": 1, "text": "x"} for w in who]
+        cases = {
+            ("claude",): 0,                                          # a first answer: nothing earlier
+            ("you", "claude"): 0,                                    # the user's own point, answered
+            ("claude", "you", "claude"): 1,                          # an answer to a reply
+            ("you", "claude", "you", "claude", "you", "claude"): 4,  # Ox #6: four messages fold
+            ("claude", "you", "claude", "claude"): 3,                # answered again with no reply between
+            ("claude", "you", "claude", "you"): 1,                   # a close after the answer joins its exchange
+            ("you",): 0,
+        }
+        got = page_function("splitAt", [thread(*who) for who in cases])
+        self.assertEqual(dict(zip(cases, got)), cases)
+
+    @unittest.skipUnless(shutil.which("node"), "needs node to run the page's own function")
+    def test_wide_pages_open_one_point_at_a_time_unless_overridden(self):
+        cases = [
+            (("wide", None, "claude"), True), (("narrow", None, "claude"), False),
+            (("wide", None, "browser"), True), (("wide", None, "hosted"), True),
+            (("wide", None, "codex"), False),                    # inline in a chat: the list
+            (("wide", "list", "claude"), False), (("narrow", "pane", "claude"), True), (("wide", "pane", "codex"), True),
+        ]
+        self.assertEqual(page_function("viewFor", [args for args, _ in cases], spread=True), [want for _, want in cases])
+
+    def test_a_point_without_a_summary_shows_its_whole_thread(self):
+        # The fold needs a summary to stand in for what it hides; a state without one renders as it always has.
+        page = render_state(STATE)
+        self.assertIn("const th = it.thread || [], at = it.summary ? splitAt(th) : 0", page)
+
+
+def page_function(name: str, inputs: list, spread: bool = False) -> list:
+    """Runs one of the page's own functions on each input with node and returns the results."""
+    page = render_state(STATE)
+    # A one-line function first, so the multi-line pattern can't run on into the function after it.
+    found = re.search(r"\n  function " + name + r"\([^\n]*\}\n|\n  function " + name + r"\(.*?\n  \}", page, re.S)
+    if not found:
+        raise AssertionError(f"page.html has no function {name}")
+    call = f"{name}(...a)" if spread else f"{name}(a)"
+    script = found.group(0) + f"\nconsole.log(JSON.stringify({json.dumps(inputs)}.map((a) => {call})));"
+    return json.loads(subprocess.run(["node", "-"], input=script, capture_output=True, text=True, check=True).stdout)
 
 
 def closed_this_round(state: dict) -> list[int]:
