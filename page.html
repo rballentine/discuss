@@ -136,13 +136,61 @@ details.pt .inner { padding: 4px 18px 16px; }
 .bar-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .status { flex: 1; min-width: 12rem; color: var(--muted); font-size: 14px; }
 .meter { font: 12px var(--mono); color: var(--faint); font-variant-numeric: tabular-nums; }
+/* One line of keys under Send, with the view switch; Alt+/ opens the full list above it. */
+.keys-line { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 14px; font-size: 12px; color: var(--faint); }
 .keys { font-size: 12px; color: var(--faint); margin: 0; }
-.keys kbd { font: 11px var(--mono); border: 1px solid var(--line-strong); border-radius: 4px; padding: 0 4px; }
+.keys kbd, .keys-line kbd { font: 11px var(--mono); border: 1px solid var(--line-strong); border-radius: 4px; padding: 0 4px; }
+.keys-btn { border: 0; padding: 0; border-radius: 3px; font: inherit; color: var(--accent); }
+.keys-btn:hover { background: none; text-decoration: underline; }
+.keys-btn kbd { color: var(--faint); }
 .err { color: var(--danger); font-size: 14px; margin: 0; }
 .err:empty { display: none; }
 #copybox { font: 13px/1.45 var(--mono); min-height: 8em; }
 .foot { color: var(--faint); font-size: 12px; margin: 12px 0 auto; }  /* the auto margin takes the free space above the bar */
 @media (prefers-reduced-motion: no-preference) { .pt { transition: border-color .15s; } }
+/* A point with a summary shows it in place of its earlier rounds; its latest exchange follows in full. */
+.sofar { background: var(--bg); border-radius: 8px; padding: 10px 12px; display: grid; gap: 6px; font-size: 14px; line-height: 1.5; }
+.sofar-h { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; font-size: 12px; color: var(--faint); }
+.sofar-h b { font: 600 11px/1 var(--sans); letter-spacing: .07em; text-transform: uppercase; color: var(--ink); }
+.earlier-btn { justify-self: start; border: 0; padding: 0; border-radius: 3px; color: var(--accent); }
+.earlier-btn:hover { background: none; text-decoration: underline; }
+.earlier { display: grid; gap: 12px; padding-left: 12px; border-left: 2px dotted var(--line-strong); }
+/* The columns: in the list view one column of cards; "One point at a time" puts the points beside one card. */
+.cols, .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+#nav { display: none; }
+.wrap.pane { max-width: 70rem; }
+.wrap.pane .cols { display: grid; grid-template-columns: 15rem minmax(0, 1fr); column-gap: 28px; align-items: start; }
+.wrap.pane #nav { display: grid; align-content: start; gap: 2px; position: sticky; top: 12px; overflow-y: auto; }
+/* A point added on the page is listed like the others; Add a point shows only its box. */
+.wrap.pane #points > :not(.sel), .wrap.pane #new-list > :not(.sel), .wrap.pane #new-h,
+.wrap.pane.adding #points, .wrap.pane.adding #new-list { display: none; }
+.wrap.pane:not(.adding) #add-h, .wrap.pane:not(.adding) .add, .wrap.pane:not(.adding) .foot { display: none; }
+.wrap.pane.adding #add-h { margin-top: 0; }
+/* A point left with Enter shows folded to its title line, as in the list; its title opens it. */
+.wrap.pane .pt:not(.collapsed) .pt-head { cursor: default; }
+.wrap.pane .pt:not(.collapsed) .pt-head::after { display: none; }
+/* The point's box stays in view under it, just above the Send bar (script sets bottom to the bar's height). */
+.wrap.pane #points .reply { position: sticky; bottom: 0; z-index: 1; background: var(--surface); margin-top: 10px; padding: 10px 0 12px; border-top: 1px solid var(--line); }
+.wrap.pane #points .pt.closing .reply { background: var(--bg); }
+.nav-item { display: flex; align-items: baseline; gap: 8px; width: 100%; box-sizing: border-box; text-align: left; border: 0; border-radius: 8px;
+  padding: 8px 10px; font: 13.5px/1.35 var(--sans); color: var(--ink); }
+.nav-item:hover { background: var(--park-bg); }
+.nav-item[aria-current="true"] { background: var(--surface); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); font-weight: 500; }
+.nav-t { flex: 1; min-width: 0; }
+.nav-item.closed .no, .nav-item.closing .no { color: var(--ok); }
+.nav-item.closed .no::before, .nav-item.closing .no::before { content: "\2713 "; content: "\2713 " / ""; }
+.nav-new { flex: none; font-size: 11px; font-weight: 500; color: var(--new); }
+.nav-m { flex: none; align-self: center; width: 7px; height: 7px; border-radius: 50%; }
+.nav-item.draft .nav-m { background: var(--new); }
+.nav-item.sent .nav-m { background: var(--ok); }
+.nav-add .no, .nav-add .nav-t { color: var(--accent); }
+/* A point you left with Enter (folded) fades, shown or not, so the ones still to reply to stand out. */
+.nav-item.folded, .nav-item.closed { opacity: .45; }
+/* On a narrow screen the points become a strip of numbers above the card. */
+.wrap.pane.narrow .cols { display: flex; align-items: stretch; }
+.wrap.pane.narrow #nav { display: flex; gap: 6px; overflow-x: auto; top: 0; z-index: 2; background: var(--bg); padding: 8px 0; margin-bottom: 8px; }
+.wrap.pane.narrow .nav-item { width: auto; flex: none; padding: 6px 10px; box-shadow: inset 0 0 0 1px var(--line); }
+.wrap.pane.narrow .nav-t, .wrap.pane.narrow .nav-new { display: none; }
 </style>
 
 <div class="wrap" id="discuss-root">
@@ -154,12 +202,17 @@ details.pt .inner { padding: 4px 18px 16px; }
     <p class="delivery" id="delivery" role="status" hidden></p>
     <label class="toggle" id="show-closed-label" hidden><input type="checkbox" id="show-closed"> <span id="show-closed-text"></span></label>
   </header>
-  <section class="list" id="points" aria-label="Discussion points"></section>
-  <h3 id="new-h" hidden>New points</h3>
-  <section class="list" id="new-list" aria-label="New points"></section>
-  <h3>Add a point</h3>
-  <div class="pt add"><div class="reply"><textarea id="add" class="field" placeholder="Type a new point and press Enter"></textarea></div></div>
-  <p class="foot">Send saves your replies with this page and sends the __ASSISTANT__ session watching it a one-line comment pointing to them, so its chat stays short. Until __ASSISTANT__ answers, they stay in their boxes; change one and Send again to send just the change. __ASSISTANT__ answers every point, then republishes; this page reloads with the answers.</p>
+  <div class="cols">
+    <nav id="nav" aria-label="Points"></nav>
+    <div class="main" id="main">
+      <section class="list" id="points" aria-label="Discussion points"></section>
+      <h3 id="new-h" hidden>New points</h3>
+      <section class="list" id="new-list" aria-label="New points"></section>
+      <h3 id="add-h">Add a point</h3>
+      <div class="pt add"><div class="reply"><textarea id="add" class="field" placeholder="Type a new point and press Enter"></textarea></div></div>
+      <p class="foot">Send saves your replies with this page and sends the __ASSISTANT__ session watching it a one-line comment pointing to them, so its chat stays short. Until __ASSISTANT__ answers, they stay in their boxes; change one and Send again to send just the change. __ASSISTANT__ answers every point, then republishes; this page reloads with the answers.</p>
+    </div>
+  </div>
   <div class="bar" id="bar">
     <div class="bar-row">
       <span class="status" id="status" aria-live="polite">No replies yet. Blank points stay as they are.</span>
@@ -167,13 +220,17 @@ details.pt .inner { padding: 4px 18px 16px; }
       <button class="plain" id="copy" type="button">Copy replies</button>
       <button class="primary" id="send" type="button">Send to __ASSISTANT__</button>
     </div>
-    <div class="keys">
+    <div class="keys" id="keys" hidden>
       <div><kbd>Tab</kbd> next box or collapsed point · <kbd>Shift</kbd>+<kbd>Tab</kbd> back</div>
-      <div><kbd>Enter</kbd> next point, collapsing this one · <kbd>Shift</kbd>+<kbd>Enter</kbd> new line</div>
-      <div><kbd>Ctrl</kbd>+<kbd>Space</kbd> collapse · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> send</div>
+      <div><kbd>Enter</kbd> next point, folding this one · <kbd>Shift</kbd>+<kbd>Enter</kbd> new line</div>
+      <div><kbd>Ctrl</kbd>+<kbd>Space</kbd> open a folded point, or show its earlier messages · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> send</div>
       <div><kbd>Alt</kbd>+<kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> put that choice in the box · <kbd>Alt</kbd>+<kbd>0</kbd> close the point, or reopen it</div>
-      <div><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>1</kbd> show closed points · <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>2</kbd> add a point</div>
+      <div><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>1</kbd> show closed points · <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>2</kbd> add a point · <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>3</kbd> one point at a time</div>
       <div id="keys-images" hidden><kbd>Ctrl</kbd>+<kbd>V</kbd> paste an image into a box, or drop one on it</div>
+    </div>
+    <div class="keys-line">
+      <span><kbd>Ctrl</kbd>+<kbd>Enter</kbd> send · <button type="button" class="keys-btn" id="keys-btn" tabindex="-1" aria-expanded="false" aria-controls="keys"><kbd>Alt</kbd>+<kbd>/</kbd> <span id="keys-btn-t">all shortcuts</span></button></span>
+      <label class="toggle"><input type="checkbox" id="view"> One point at a time</label>
     </div>
     <p class="err" id="err" role="alert"></p>
     <p id="storage-warning" role="status" hidden></p>
@@ -217,6 +274,7 @@ details.pt .inner { padding: 4px 18px 16px; }
   let newPoints = [];  // points added on this page this round: {text, sent}
   let draft = {}, persistTimer, edited = false;
   let assetsReady = Promise.resolve(null), uploading = 0;
+  let pane = false, sel = null;  // "One point at a time", and the point it shows ("add" for Add a point)
   function restoreDraft(saved) {
     // Host snapshots may arrive after more typing; never replace local edits with an echo.
     if (edited) return false;
@@ -371,10 +429,36 @@ details.pt .inner { padding: 4px 18px 16px; }
       '<button type="button" tabindex="-1" aria-label="Remove image ' + (i + 1) + '" data-i="' + i + '">\u00d7</button></span>').join("");
   }
 
+  // Where a thread's latest exchange starts: its newest answer, with the reply of yours that it answers. A point with a
+  // summary shows the summary in place of everything before that, behind "Show N earlier messages".
+  function splitAt(thread) {
+    let a = thread.length - 1;
+    while (a >= 0 && thread[a].who === "you") a--;
+    if (a < 0) return 0;
+    return a > 0 && thread[a - 1].who === "you" ? a - 1 : a;
+  }
+  function entryHtml(e) {
+    return '<div class="' + (e.who === "you" ? "you" : "claude") + '"><div class="who">' + (e.who === "you" ? "You" : e.who[0].toUpperCase() + e.who.slice(1)) +
+      " · round " + e.round + '</div><div class="msg">' + md(e.text) + "</div></div>";
+  }
   function threadHtml(it) {
-    return '<div class="thread">' + (it.thread || []).map((e) =>
-      '<div class="' + (e.who === "you" ? "you" : "claude") + '"><div class="who">' + (e.who === "you" ? "You" : e.who[0].toUpperCase() + e.who.slice(1)) +
-      " · round " + e.round + '</div><div class="msg">' + md(e.text) + "</div></div>").join("") + "</div>";
+    const th = it.thread || [], at = it.summary ? splitAt(th) : 0, earlier = th.slice(0, at);
+    if (!earlier.length) return '<div class="thread">' + th.map(entryHtml).join("") + "</div>";
+    const open = !!load("e" + it.n), from = earlier[0].round, to = earlier[earlier.length - 1].round;
+    return '<div class="thread"><div class="sofar"><div class="sofar-h"><b>So far</b><span>' + (from === to ? "round " + from : "rounds " + from + "–" + to) + "</span></div>" +
+      '<div class="msg">' + md(it.summary) + '</div><button type="button" class="earlier-btn" tabindex="-1" title="Ctrl+Space" aria-keyshortcuts="Control+Space" aria-expanded="' + open + '" aria-controls="e-' + it.n +
+      '" data-n="' + it.n + '" data-count="' + earlier.length + '">' + earlierLabel(open, earlier.length) + "</button></div>" +
+      '<div class="earlier" id="e-' + it.n + '"' + (open ? "" : " hidden") + ">" + earlier.map(entryHtml).join("") + "</div>" +
+      th.slice(at).map(entryHtml).join("") + "</div>";
+  }
+  function earlierLabel(open, count) { return open ? "Hide earlier messages" : "Show " + count + " earlier message" + (count === 1 ? "" : "s"); }
+  function toggleEarlier(b, open) {
+    const list = $("e-" + b.dataset.n);
+    if (open === undefined) open = list.hidden;
+    list.hidden = !open;
+    b.setAttribute("aria-expanded", String(open));
+    b.textContent = earlierLabel(open, +b.dataset.count);
+    return open;
   }
   function replyHtml(it) {
     return '<div class="reply"><textarea id="r-' + it.n + '" class="field" data-n="' + it.n + '" placeholder="Reply to point ' + it.n + '"></textarea>' +
@@ -455,6 +539,7 @@ details.pt .inner { padding: 4px 18px 16px; }
     save("c" + card.id.slice(2), now ? "1" : "");
     if (!now) growAll(card);
     if (focus) (now ? head : card.querySelector("textarea.field")).focus();
+    paintNav();
   }
 
   // Close settles an open point as it stands: its card folds at once, and the next Send carries "#n (close)" with any reply
@@ -498,7 +583,7 @@ details.pt .inner { padding: 4px 18px 16px; }
 
     document.querySelectorAll("textarea[data-n]").forEach((t) => {
       fillBox(t, box(t.dataset.n));
-      t.addEventListener("input", () => { put(t.dataset.n, reply(t)); grow(t); update(); });
+      t.addEventListener("input", () => { put(t.dataset.n, reply(t)); unfold(t); grow(t); update(); });
       t.addEventListener("keydown", onKey);
     });
     document.querySelectorAll("button.choice").forEach((b) => {
@@ -512,6 +597,7 @@ details.pt .inner { padding: 4px 18px 16px; }
       b.addEventListener("pointerleave", hideTip);
     });
     document.querySelectorAll("button.undo").forEach((b) => b.addEventListener("click", () => closePoint($("p-" + b.dataset.n), false)));
+    document.querySelectorAll("button.earlier-btn").forEach((b) => b.addEventListener("click", () => save("e" + b.dataset.n, toggleEarlier(b) ? "1" : "")));
     $("points").querySelectorAll(".pt-head").forEach(bindHead);
     document.querySelectorAll("details.pt").forEach((d) => d.addEventListener("toggle", () => {
       d.querySelector("summary").tabIndex = d.open ? -1 : 0;
@@ -524,10 +610,12 @@ details.pt .inner { padding: 4px 18px 16px; }
     renderNew();
   }
 
+  // One point at a time, the title only opens a folded point; Enter in its box is what folds it.
   function bindHead(h) {
-    h.addEventListener("click", () => toggleCard(h.closest(".pt"), false));
+    const can = () => !pane || h.closest(".pt").classList.contains("collapsed");
+    h.addEventListener("click", () => { if (can()) toggleCard(h.closest(".pt"), false); });
     // Ctrl+Space is left to the page-wide handler, so it toggles once.
-    h.addEventListener("keydown", (e) => { if (!e.ctrlKey && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); toggleCard(h.closest(".pt"), true); } });
+    h.addEventListener("keydown", (e) => { if (can() && !e.ctrlKey && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); toggleCard(h.closest(".pt"), true); } });
   }
   function collapse(card) {
     if (card.tagName === "DETAILS") card.open = false;
@@ -537,6 +625,7 @@ details.pt .inner { padding: 4px 18px 16px; }
   function showClosed(show) {
     document.querySelectorAll("#points details.pt").forEach((card) => { card.hidden = !show; });
     growAll($("points"));
+    if (pane) { buildNav(); select(sel, false, true); }  // the shown point stays, unless it was a closed one just hidden
   }
 
   // A host handed back a stored draft after the first render: put it into the boxes, cards and toggle.
@@ -552,9 +641,11 @@ details.pt .inner { padding: 4px 18px 16px; }
       head.setAttribute("aria-expanded", String(!collapsed));
       head.tabIndex = collapsed ? 0 : -1;
     });
+    document.querySelectorAll("button.earlier-btn").forEach((b) => toggleEarlier(b, !!load("e" + b.dataset.n)));
     $("show-closed").checked = !!load("pref:showclosed");
     showClosed($("show-closed").checked);
     renderNew(); growAll(); update();
+    applyView();  // the restored draft may hold a view chosen for this width
   }
 
   function renderNew() {
@@ -570,12 +661,13 @@ details.pt .inner { padding: 4px 18px 16px; }
     $("new-list").querySelectorAll("textarea").forEach((t) => {
       const p = newPoints[+t.dataset.new];
       fillBox(t, p.text);
-      t.addEventListener("input", () => { p.text = reply(t); storeNew(); grow(t); update(); t.closest(".pt").querySelector("h2").textContent = titleOf(p.text); });
+      t.addEventListener("input", () => { p.text = reply(t); storeNew(); unfold(t); grow(t); t.closest(".pt").querySelector("h2").textContent = titleOf(p.text); update(); });
       // An emptied point that was never sent just goes; one that was sent stays, so the withdrawal is sent.
       t.addEventListener("blur", () => { if (!p.text.trim() && !p.sent && !p.attempted) { newPoints.splice(newPoints.indexOf(p), 1); storeNew(); renderNew(); update(); } });
       t.addEventListener("keydown", onKey);
     });
     growAll($("new-list"));
+    if (pane) { buildNav(); select(sel, false, true); }  // one point at a time lists the new points too
     if (CODEX) {
       // The shared design owns these controls; host utility classes override it.
       document.querySelectorAll("#discuss-root textarea").forEach((t) => {
@@ -616,8 +708,15 @@ details.pt .inner { padding: 4px 18px 16px; }
     }
     moveOn(t);
   }
-  // Enter moves on and folds the point it leaves, which is what sets it apart from Tab.
+  // Enter moves on and folds the point it leaves, which is what sets it apart from Tab. One point at a time, the point
+  // folds just the same (its entry in the list dims) and the next point shows.
   function moveOn(t) {
+    if (pane) {
+      const card = t.closest("article.pt[id]");
+      if (card && !card.classList.contains("collapsed")) toggleCard(card, false);
+      step(1, true);
+      return;
+    }
     const all = fields();
     let next = all[all.indexOf(t) + 1];
     const card = t.closest(".pt[id]");
@@ -687,6 +786,123 @@ details.pt .inner { padding: 4px 18px 16px; }
     // In Claude the replies go through the page's store, so only a view without it is held to a comment's 4 KB.
     $("meter").textContent = b <= LIMIT ? "" : CODEX || BROWSER || HOSTED ? (b / 1024).toFixed(1) + " KB"
       : db ? "" : (b / 1024).toFixed(1) + " KB, over the 4 KB a comment can carry";
+    paintNav();
+  }
+
+  // ---- One point at a time ----
+  // The same cards, boxes and Send: the points listed beside one card, whose box stays pinned above the Send bar. It is the
+  // default where the page is at least WIDE pixels across, except inline in a chat. The switch, or Ctrl+Alt+3, overrides
+  // that for the page's current width class ("pref:view-wide" or "pref:view-narrow"), so a phone keeps the list.
+  const WIDE = 760;
+  const root = $("discuss-root");
+  function widthClass() { return document.documentElement.clientWidth >= WIDE ? "wide" : "narrow"; }
+  function viewFor(cls, pref, client) { return pref ? pref === "pane" : cls === "wide" && client !== "codex"; }
+  let viewShown = false;  // until the page's first view is up, a pane opens on the point saved this round
+  function applyView() {
+    const cls = widthClass();
+    root.classList.toggle("narrow", cls === "narrow");
+    const on = viewFor(cls, get("pref:view-" + cls), S.client);
+    if (on !== pane) setPane(on);
+    viewShown = true;
+    $("view").checked = pane;
+    pin();
+  }
+  function toggleView() {
+    save("pref:view-" + widthClass(), pane ? "list" : "pane");
+    applyView();
+  }
+  // What can be shown: the points on the page (closed ones only while shown), the points added on it, then Add a point.
+  const CARDS = "#points > .pt[id], #new-list > .pt[id]";
+  function items() {
+    return Array.from(document.querySelectorAll(CARDS)).filter((c) => !c.hidden).map((c) => c.id.slice(2)).concat("add");
+  }
+  // The point you were on: the one holding the focus, else the first card on screen.
+  function currentPoint() {
+    const at = document.activeElement, card = at && at.closest && at.closest(CARDS);
+    if (card) return card.id.slice(2);
+    if (at && at.closest && at.closest(".add")) return "add";
+    const first = Array.from(document.querySelectorAll(CARDS)).find((c) => shown(c) && c.getBoundingClientRect().bottom > 80);
+    return first ? first.id.slice(2) : null;
+  }
+  function setPane(on) {
+    const from = on ? (viewShown ? currentPoint() : load("sel")) : sel;
+    pane = on;
+    root.classList.toggle("pane", on);
+    if (on) { buildNav(); select(from, false, !viewShown); return; }
+    root.classList.remove("adding");
+    document.querySelectorAll(".pt.sel").forEach((c) => c.classList.remove("sel"));
+    growAll();
+    const el = from === "add" ? $("add-h") : from && $("p-" + from);
+    if (el) window.scrollBy(0, el.getBoundingClientRect().top - 12);
+  }
+  // Shows one point (or Add a point), from its top; quiet skips saving it, so a host's draft isn't marked edited on load.
+  function select(id, focus, quiet) {
+    const list = items();
+    if (!list.includes(id)) id = list[0];
+    sel = id;
+    if (!quiet) save("sel", id);
+    root.classList.toggle("adding", id === "add");
+    document.querySelectorAll("#points > .pt, #new-list > .pt").forEach((c) => c.classList.toggle("sel", c.id === "p-" + id));
+    const card = id === "add" ? null : $("p-" + id);
+    if (card && card.tagName === "DETAILS") card.open = true;
+    paintNav(); growAll(); pin();
+    const top = (card || $("main")).getBoundingClientRect().top;
+    if (top < 0) window.scrollBy(0, top - 12);
+    // A folded point takes the focus on its title, as in the list, so Enter, Space or Ctrl+Space opens it.
+    if (focus) {
+      const t = !card ? $("add") : card.classList.contains("collapsed") ? card.querySelector(".pt-head") : card.querySelector("textarea.field");
+      if (t) t.focus({ preventScroll: true });
+    }
+  }
+  function step(d, focus) {
+    const list = items(), i = list.indexOf(sel);
+    select(list[(i + d + list.length) % list.length], focus);
+  }
+  function buildNav() {
+    const byN = {};
+    S.items.forEach((it) => { byN[it.n] = it; });
+    $("nav").innerHTML = items().map((id) => {
+      const it = byN[id];
+      if (id === "add") return '<button type="button" class="nav-item nav-add" tabindex="-1" data-sel="add"><span class="no">+</span><span class="nav-t">Add a point</span><span class="nav-m"></span></button>';
+      // A point added on this page has no item in the state; its title is the one its card shows.
+      const title = it ? inline(it.title) : esc($("p-" + id).querySelector("h2").textContent);
+      return '<button type="button" class="nav-item' + (!it || it.status === "open" ? "" : " closed") + '" tabindex="-1" data-sel="' + id + '"><span class="no">' + id + "</span>" +
+        '<span class="nav-t">' + title + "</span>" + (it && isNew(it) ? '<span class="nav-new">New</span>' : "") + '<span class="nav-m"></span></button>';
+    }).join("");
+    paintNav();
+  }
+  // Marks each point as its card is: a draft, sent, closing, or folded (left with Enter).
+  function paintNav() {
+    if (!pane) return;
+    $("nav").querySelectorAll("[data-sel]").forEach((b) => {
+      const id = b.dataset.sel, card = id === "add" ? null : $("p-" + id);
+      b.setAttribute("aria-current", String(id === sel));
+      if (!card) { b.classList.toggle("draft", !!reply($("add")).trim()); return; }
+      const d = card.querySelector(".pill.draft");
+      b.classList.toggle("draft", !!d && !d.hidden);
+      b.classList.toggle("sent", card.classList.contains("sent"));
+      b.classList.toggle("closing", card.classList.contains("closing"));
+      b.classList.toggle("folded", card.classList.contains("collapsed"));
+      if (card.closest("#new-list")) b.querySelector(".nav-t").textContent = card.querySelector("h2").textContent;
+    });
+  }
+  // Typing in a point you had left with Enter brings it back among the ones still to think about.
+  function unfold(t) {
+    const card = pane && t.closest("article.pt.collapsed");
+    if (card) toggleCard(card, false);
+  }
+  // The shown point's box sits just above the Send bar, and the list of points fits between the window's top and the bar.
+  function pin() {
+    const h = $("bar").offsetHeight;
+    document.querySelectorAll("#points .reply").forEach((r) => { r.style.bottom = pane ? h + "px" : ""; });
+    $("nav").style.maxHeight = pane && !root.classList.contains("narrow") ? "calc(100vh - " + (h + 24) + "px)" : "";
+  }
+  function toggleKeys() {
+    const open = $("keys").hidden;
+    $("keys").hidden = !open;
+    $("keys-btn").setAttribute("aria-expanded", String(open));
+    $("keys-btn-t").textContent = open ? "hide shortcuts" : "all shortcuts";
+    pin();
   }
 
   // After a send, the boxes keep their text and remember it as sent, so a reload shows it and a later Send carries only changes.
@@ -879,14 +1095,27 @@ details.pt .inner { padding: 4px 18px 16px; }
   render();
   growAll();
   update();
-  window.addEventListener("resize", () => growAll());
+  applyView();
+  window.addEventListener("resize", () => { growAll(); applyView(); });
+  if (window.ResizeObserver) new ResizeObserver(pin).observe($("bar"));  // the bar grows with an error or the key list
   window.addEventListener("scroll", hideTip, { passive: true });  // the page moved under a still pointer
+  $("view").addEventListener("change", toggleView);
+  $("keys-btn").addEventListener("click", toggleKeys);
+  $("nav").addEventListener("click", (e) => { const b = e.target.closest("[data-sel]"); if (b) select(b.dataset.sel, false); });
   document.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !e.target.closest("textarea.field")) { e.preventDefault(); send(); }
+    // Ctrl+Space opens a folded point, or shows or hides an open point's earlier messages. Enter is what folds a point.
     if (e.ctrlKey && (e.code === "Space" || e.key === " ")) {
       const card = document.activeElement && document.activeElement.closest(".pt[id]");
-      if (card) { e.preventDefault(); toggleCard(card, true); }
+      if (card) {
+        e.preventDefault();
+        const b = card.querySelector("button.earlier-btn");
+        if (card.classList.contains("collapsed") || card.tagName === "DETAILS" && !card.open) toggleCard(card, true);
+        else if (b) b.click();
+      }
     }
+    // Alt+/ shows or hides the full list of keys; matched by key position, like the Alt+digit keys.
+    if (e.altKey && !e.ctrlKey && !e.metaKey && e.code === "Slash") { e.preventDefault(); toggleKeys(); }
     // Alt+1 to Alt+3 put that choice in the focused point's box. Matched by key position, so a layout's Alt+digit character
     // doesn't matter; Ctrl stays out, so AltGr (Ctrl+Alt) still types.
     if (e.altKey && !e.ctrlKey && !e.metaKey && /^Digit[1-3]$/.test(e.code)) {
@@ -903,12 +1132,23 @@ details.pt .inner { padding: 4px 18px 16px; }
         else closePoint(card, true);
       }
     }
-    // Ctrl+Alt+1 shows or hides the closed points; Ctrl+Alt+2 goes to "Add a point". Both sit under one hand, and neither is
-    // a browser shortcut (Ctrl+1 and Ctrl+2 switch tabs).
-    if (e.ctrlKey && e.altKey && !e.metaKey && !e.shiftKey && (e.code === "Digit1" || e.code === "Digit2")) {
+    // Ctrl+Alt+1 shows or hides the closed points; Ctrl+Alt+2 goes to "Add a point"; Ctrl+Alt+3 switches to or from one
+    // point at a time. They sit under one hand, and none is a browser shortcut (Ctrl+1 and Ctrl+2 switch tabs).
+    if (e.ctrlKey && e.altKey && !e.metaKey && !e.shiftKey && /^Digit[1-3]$/.test(e.code)) {
       e.preventDefault();
-      if (e.code === "Digit2") $("add").focus();
+      if (e.code === "Digit3") toggleView();
+      else if (e.code === "Digit2") { if (pane) select("add", true); else $("add").focus(); }
       else if (!$("show-closed-label").hidden) $("show-closed").click();
+    }
+    // One point at a time, Tab and Shift+Tab go from a point's box to the next or previous point's, and wrap round. Within
+    // Add a point they run through its boxes as in the list.
+    if (pane && e.key === "Tab" && !e.ctrlKey && !e.altKey && !e.metaKey) {
+      const at = document.activeElement;
+      if (at && at.closest && at.closest("#points > .pt.sel, #new-list > .pt.sel") || at === $("add") && (e.shiftKey || !reply(at).trim())) {
+        e.preventDefault();
+        step(e.shiftKey ? -1 : 1, true);
+        return;
+      }
     }
     // Tab runs through the points and "Add a point" and wraps round, never reaching the Send bar's buttons. Tab in
     // "Add a point" with text in it first turns the text into a new point and moves to it.
@@ -917,7 +1157,11 @@ details.pt .inner { padding: 4px 18px 16px; }
       if (!e.shiftKey && at === $("add")) {
         e.preventDefault();
         if (!reply($("add")).trim()) { if (all[0]) all[0].focus(); }
-        else { addPoint(false); $("new-list").querySelector("article.pt:last-child textarea").focus(); }
+        else {
+          addPoint(false);
+          const made = $("new-list").querySelector("article.pt:last-child");
+          if (pane) select(made.id.slice(2), true); else made.querySelector("textarea").focus();
+        }
       } else if (e.shiftKey && at === all[0]) { e.preventDefault(); $("add").focus(); }
     }
   });
@@ -928,7 +1172,7 @@ details.pt .inner { padding: 4px 18px 16px; }
   document.addEventListener("keydown", () => { pointing = false; }, true);
   document.addEventListener("focusin", (e) => {
     const t = e.target;
-    if (!t.matches || !t.matches("textarea.field, .pt-head, summary")) return;
+    if (pane || !t.matches || !t.matches("textarea.field, .pt-head, summary")) return;  // one point at a time pins its box
     if (pointing) { t.scrollIntoView({ block: "nearest" }); return; }
     const el = t.matches("textarea.field") ? t.closest(".reply") || t : t;
     window.scrollBy(0, el.getBoundingClientRect().bottom + 12 - $("bar").getBoundingClientRect().top);

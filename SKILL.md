@@ -30,6 +30,16 @@ button stays in its sent state until a reply changes. Closed points are hidden
 by default. "Show closed points" reveals them in numerical order among the open
 points, and says how many closed this round. These UI rules apply to every client.
 
+**Long points.** A point with a `summary` shows it in place of its earlier
+rounds, behind "Show N earlier messages", then its latest exchange in full: the
+user's last reply and the answer to it. Where the page is at least 760px wide
+(except inline in a chat), it opens **one point at a time**: the points listed
+beside one card, whose box stays pinned just above the Send bar. Narrower, it
+opens as the list. The "One point at a time" switch in the Send bar (Ctrl+Alt+3)
+overrides that for the width the page is at, and the page remembers it. Both views
+are the same page, boxes and Send. The Send bar shows one line of keys; Alt+/ opens
+the full list.
+
 **The page holds the answers; chat doesn't repeat them** (reading everything
 twice is the cost this skill exists to remove). After each round, chat
 gets one line, a tally such as "Round 2 answered: 4 closed, 3 still open", plus only
@@ -301,6 +311,12 @@ Stay in chat when:
    specific enough to act on alone, at most 300 characters. The page shows a
    point's choices only while it is open and that answer is its latest, so
    every new answer on an open point brings its own.
+
+   **Summary**: once a point's thread holds an earlier answer of yours, give the
+   point a `summary`: where it stands in one or two sentences, ending with what is
+   still open (`**Still open:** ...`). Rewrite it each time you answer the point.
+   The page shows it in place of everything before the latest exchange, so it must
+   stand on its own; a point without one shows its whole thread.
 3. **Present the round.** In Codex, use the browser page above (or the optional
    HTML path when appropriate). With a project host, publish as its instructions
    say and skip step 4. In Claude, render and publish:
@@ -402,6 +418,18 @@ the next free number and answer it there.
    - **New point**: add it under the number the page gave it, with your
      position (or, for a request, what you did) as its `nextRound` text. One
      new point that bundles several asks may be split into numbered points.
+   - **One topic per point, and no more points than topics.** Work and decisions
+     related to a point stay in it: a walkthrough of what it proposes, a draft
+     it leads to, a few connected decisions answered together, with choices
+     that settle them together. Only unrelated work gets a new point, under the
+     next free number, with a line on the old point saying where it went. The
+     summary and the page's views keep a long point readable, so length alone
+     is no reason to split one.
+   - **Answer first.** The first sentence gives the answer or names the
+     decision. Whatever the user needs to answer goes in the answer itself: the
+     page shows the latest answer whole.
+   - Rewrite the point's `summary` (see the state format) whenever you answer it
+     after its first answer.
    - A reply on a closed point reopens it unless it just confirms.
    - **Open or closed?** Close a point yourself (`done`, with an `outcome`
      saying what changed and where, or "agreed") only when the user asked for
