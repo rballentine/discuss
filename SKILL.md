@@ -499,6 +499,11 @@ Two differences seen with the connector:
   browser storage, keyed by slug and round, so a new round starts clean.
 - Only the page's editors can send to Claude. Anyone else can use
   **Copy replies**.
+- Claude's app refuses a Send when it isn't sure the press was meant for the
+  page: focus came straight from its message box, or a permission or question
+  card is waiting in a session. It shows "Not sent to Claude", and the page
+  says what to do: answer the card, click once on the conversation, wait 6
+  seconds, Send again. The session is fine; nothing needs republishing.
 - A page published before images existed can't take them until `assets` is added
   to its declaration: read it, add `assets`, and declare before republishing.
 - `read_asset` serves only an artifact the user owns that nobody else has written

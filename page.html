@@ -923,6 +923,16 @@ details.pt .inner { padding: 4px 18px 16px; }
     pending: "Sending to __ASSISTANT__ isn't available in this view yet.",
   };
   function fallback(reason) { $("err").textContent = (WHY[reason] || WHY.off) + " Copy your replies and paste them into the session's chat."; }
+  // Claude's app refuses a page's send with claude_unavailable both when no session is watching and when it isn't sure the
+  // press was meant for the page: focus came from its message box, or a permission or question card is open (it shows its
+  // own "Not sent to Claude" notice then). Only in the second case does canSendToClaude still answer "available".
+  async function whyNotSent() {
+    let can;
+    try { can = await comments.canSendToClaude(); } catch (e) { can = "off"; }
+    canSend = can;
+    if (can !== "available") { fallback(can); return; }
+    $("err").textContent = "Not sent: __ASSISTANT__'s app wasn't sure that press was meant for this page. Answer any permission or question waiting in a session, click once on the conversation beside this page (not its message box), wait 6 seconds, then press Send again.";
+  }
 
   async function copy() {
     const text = compose();
@@ -1055,11 +1065,11 @@ details.pt .inner { padding: 4px 18px 16px; }
     controls.forEach((el) => { el.disabled = true; });
     $("send").textContent = "Sending…";
     try {
-      let anchor, can;
-      try { [anchor, can] = await Promise.all([comments.anchorFor($("top")), comments.canSendToClaude()]); }
-      catch (e) { can = "off"; }
-      canSend = can;
-      if (can !== "available") { fallback(can); return; }
+      // The app takes sendToClaude only within about 5 seconds of the click, and canSendToClaude can take up to 3 seconds,
+      // so it runs only after a refusal (whyNotSent); sendToClaude checks the same thing itself.
+      let anchor;
+      try { anchor = await comments.anchorFor($("top")); }
+      catch (e) { fallback("off"); return; }
       // The comment is what the session's chat shows, so the replies go in the page's store and the comment is one line naming
       // them. If the store can't take them, a send that fits a comment's 4 KB carries them itself.
       let stored = "";
@@ -1080,7 +1090,7 @@ details.pt .inner { padding: 4px 18px 16px; }
     } catch (e) {
       const code = e && e.code;
       if (code === "consent_required") $("err").textContent = "The page needs your OK to comment as you. Press Send again and allow it.";
-      else if (code === "claude_unavailable") fallback("no_session");
+      else if (code === "claude_unavailable") await whyNotSent();
       else if (code === "forbidden" || code === "not_granted" || code === "capability_disabled" || code === "capability_removed") fallback("off");
       else if (code === "rate_limited") $("err").textContent = "Too many sends in a row. Wait a minute, then press Send again.";
       else if (code === "invalid") $("err").textContent = "__ASSISTANT__ couldn't take that text. Remove unusual characters, then send again.";
